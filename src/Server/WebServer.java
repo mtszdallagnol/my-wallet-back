@@ -1,11 +1,12 @@
 package Server;
 
-import General.ResponseAPI;
+import Responses.ControllerResponse;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
@@ -16,10 +17,7 @@ import General.JsonSerializer;
 
 public class WebServer {
     private static HttpServer _Server = null;
-
-    private static String DB_LOCATION = null;
-    private static String DB_USER = null;
-    private static String DB_PASSWORD = null;
+    public static DatabaseConnectionPool databaseConnectionPool;
     private static String ADDRESS = null;
     private static int PORT = -1;
 
@@ -33,32 +31,18 @@ public class WebServer {
 
     private static final Logger logger = ColoredLogger.getLogger();
 
-    private WebServer() throws IOException {
-        Properties prop = new Properties();
-
-        InputStream input = new FileInputStream("src/.env");
-        prop.load(input);
-
-        DB_LOCATION = prop.getProperty("DB_LOCATION");
-        DB_USER = prop.getProperty("DB_USER");
-        DB_PASSWORD = prop.getProperty("DB_PASSWORD");
-        ADDRESS = prop.getProperty("ADDRESS");
-        PORT = Integer.parseInt(prop.getProperty("PORT"));
-
-        if (DB_LOCATION == null || DB_USER == null || DB_PASSWORD == null ||
-            ADDRESS == null || PORT == -1) {
-            logger.severe("Falha ao lidar com variáveis do arquivo ENV");
-            throw new IOException();
-        }
-    }
-
-    public static void start() throws IOException {
+    public static void start() throws IOException, SQLException, Exception {
         if (_Server != null) {
             logger.warning("Servidor já iniciado");
             return;
         }
 
-        new WebServer();
+        Properties prop = new Properties();
+        InputStream input = new FileInputStream("src/.env");
+        prop.load(input);
+        ADDRESS = prop.getProperty("ADDRESS");
+        PORT = Integer.parseInt(prop.getProperty("PORT"));
+
 
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 
@@ -73,9 +57,13 @@ public class WebServer {
         );
         _Server.setExecutor(httpThreadPool);
 
+        databaseConnectionPool = DatabaseConnectionPool.getInstance();
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             logger.info("Desligando servidor...");
             _Server.stop(0);
+
+            databaseConnectionPool.shutdow();
 
             httpThreadPool.shutdown();
             dbThreadPool.shutdown();
@@ -97,7 +85,7 @@ public class WebServer {
     }
 
 
-    public static void SendResponse(HttpExchange exchange, ResponseAPI response) throws IOException {
+    public static void SendResponse(HttpExchange exchange, ControllerResponse response) throws IOException {
         String finalResponse = "{\"error\": 1, \"httpStatus\": 500, \"msg\": \"Erro ao serializar resposta para JSON\", \"data\": null}";
 
         JsonSerializer.SerializationResult result = JsonSerializer.serialize(response);

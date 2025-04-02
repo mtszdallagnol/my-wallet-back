@@ -1,6 +1,6 @@
-package General;
+package Responses;
 
-public class ResponseAPI<T> {
+public class ControllerResponse<T> {
     public int error = 1;
     public int httpStatus = 500;
     public String msg = "Falha na operação";

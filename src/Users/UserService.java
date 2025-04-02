@@ -1,25 +1,33 @@
-//package Users;
-//
-//import java.util.List;
-//
-//public class UserService implements UserInterface {
-//    public List<UserDTO> getAll() {
-//
-//    }
-//
-//    public UserDTO getById(int id) {
-//
-//    }
-//
-//    public void post(UserDTO user) {
-//
-//    }
-//
-//    public void update(UserDTO user) {
-//
-//    }
-//
-//    public void delete(int id) {
-//
-//    }
-//}
+package Users;
+
+import General.ServiceInterface;
+import Responses.ServiceResponse;
+
+import java.util.List;
+
+public class UserService implements ServiceInterface<UserDTO> {
+    @Override
+    public ServiceResponse<List<UserDTO>> getAll() {
+        return null;
+    }
+
+    @Override
+    public ServiceResponse<UserDTO> getById(int id) {
+        return null;
+    }
+
+    @Override
+    public ServiceResponse post(UserDTO user) {
+        return null;
+    }
+
+    @Override
+    public ServiceResponse update(UserDTO user) {
+        return null;
+    }
+
+    @Override
+    public ServiceResponse delete (int id) {
+        return null;
+    }
+}
