@@ -57,7 +57,13 @@ public class UserController {
 
             int userId = Integer.parseInt(query.split("=")[1]);
             CompletableFuture<ServiceResponse<UserDTO>> responseFuture =
-                    CompletableFuture.supplyAsync(() -> service.getById(userId), WebServer.dbThreadPool);
+                    CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return service.getById(userId);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }, WebServer.dbThreadPool);
 
             responseFuture.thenAccept(result -> {
                 if (!result.isSuccessful) {

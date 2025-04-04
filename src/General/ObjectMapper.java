@@ -44,7 +44,7 @@ public class ObjectMapper<T> {
             return null;
         }
     }
-    public List<String> getErros() {
+    public List<String> getErrors() {
         return erros;
     }
 
