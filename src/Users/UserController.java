@@ -4,8 +4,9 @@ import Server.WebServer;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import Responses.ControllerResponse;
 import Responses.ServiceResponse;
@@ -26,8 +27,8 @@ public class UserController {
                 handleDELETE(exchange);
                 break;
             default:
-                ControllerResponse response = new ControllerResponse();
-                response.error = 1;
+                ControllerResponse<Void> response = new ControllerResponse<>();
+                response.error = true;
                 response.httpStatus = 405;
                 response.msg = "Invalid Operation";
                 WebServer.SendResponse(exchange, response);
@@ -38,48 +39,69 @@ public class UserController {
         SINGLE, MULTIPLE, INVALID
     }
     private static void handleGET(HttpExchange exchange) throws IOException {
-        ControllerResponse response = new ControllerResponse();
-
         String query = exchange.getRequestURI().getQuery();
         typeGet type = getTypeGet(query);
 
         if (type == typeGet.INVALID) {
-            response.error = 1;
+            ControllerResponse<Void> response = new ControllerResponse<>();
+            response.error = true;
             response.httpStatus = 400;
             response.msg = "Tipo de parametro invalido";
-            response.data = type;
             WebServer.SendResponse(exchange, response);
             return;
         }
 
-        try {
-            CompletableFuture<ServiceResponse> responseFuture;
+        UserService service = new UserService();
+        if (type == typeGet.SINGLE) {
+            ControllerResponse<UserDTO> response = new ControllerResponse<>();
 
-            UserService service = new UserService();
-            if (type == typeGet.SINGLE) {
-                int userId = Integer.parseInt(query.split("=")[1]);
-                responseFuture = CompletableFuture.supplyAsync(() -> service.getById(userId), WebServer.dbThreadPool);
-            } else {
-                responseFuture = CompletableFuture.supplyAsync(service::getAll, WebServer.dbThreadPool);
-            }
+            int userId = Integer.parseInt(query.split("=")[1]);
+            CompletableFuture<ServiceResponse<UserDTO>> responseFuture =
+                    CompletableFuture.supplyAsync(() -> service.getById(userId), WebServer.dbThreadPool);
 
             responseFuture.thenAccept(result -> {
                 if (!result.isSuccessful) {
-                    throw new CompletionException(new RuntimeException("Falha ao recuperar usuário(s)"));
+                    response.msg = "Falha ao recuperar usuário: " + result.msg;
+                } else {
+                    response.error = false;
+                    response.httpStatus = 200;
+                    response.msg = result.msg;
+                    response.data = result.data;
                 }
 
-                response.error = 0;
-                response.httpStatus = 200;
-                response.msg = "Sucesso ao recuperar usuário(s): " + result.msg;
-                response.data = result.data;
-            }).exceptionally(ex -> {
-                response.error = 0;
-                response.httpStatus = 500;
-                response.msg = ex.getMessage();
-                response.data = response.data;
-                return null;
-            }).whenComplete((result, ex) -> {
-                
+                try {
+                    WebServer.SendResponse(exchange, response);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } else {
+            ControllerResponse<List<UserDTO>> response = new ControllerResponse<>();
+
+            CompletableFuture<ServiceResponse<List<UserDTO>>> responseFuture =
+                    CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return service.getAll();
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }, WebServer.dbThreadPool);
+
+            responseFuture.thenAccept(result -> {
+                if (!result.isSuccessful) {
+                    response.msg = "Falha ao recuperar usuários: " + result.msg;
+                } else {
+                    response.error = false;
+                    response.httpStatus = 200;
+                    response.msg = "Sucesso ao recuperar usuários";
+                    response.data = result.data;
+                }
+
+                try {
+                    WebServer.SendResponse(exchange, response);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             });
         }
     }

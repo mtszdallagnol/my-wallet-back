@@ -1,6 +1,7 @@
 package General;
 
 import java.lang.reflect.Field;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -79,26 +80,28 @@ public class JsonSerializer {
             return "null";
         }
 
-        // Prevent circular references
-        if (context.hasBeenProcessed(obj)) {
-            return "\"[Circular Reference]\"";
-        }
-        context.markProcessed(obj);
-
-        // Enum handling
+        // Special case for enums - don't check for circular references
         if (obj instanceof Enum) {
             return serializeEnum((Enum<?>) obj);
         }
 
-        // Primitive and wrapper types
-        if (isPrimitiveOrWrapper(obj)) {
-            return obj.toString();
+        // Handle immutable types that cannot have circular references
+        if (isPrimitiveOrWrapper(obj) || obj instanceof String || obj instanceof Temporal) {
+            // These types are immutable and cannot have circular references
+            if (obj instanceof String) {
+                return "\"" + escapeString((String) obj) + "\"";
+            } else if (obj instanceof Temporal) {
+                return serializeTemporal(obj);
+            } else {
+                return obj.toString();
+            }
         }
 
-        // Strings
-        if (obj instanceof String) {
-            return "\"" + escapeString((String) obj) + "\"";
+        // Prevent circular references for all other types
+        if (context.hasBeenProcessed(obj)) {
+            return "\"[Circular Reference]\"";
         }
+        context.markProcessed(obj);
 
         // Collections
         if (obj instanceof Collection) {
@@ -117,6 +120,12 @@ public class JsonSerializer {
 
         // Custom objects
         return serializeObject(obj, context);
+    }
+
+    // Temporal type serialization
+    private static String serializeTemporal(Object temporalObj) {
+        // Simply use toString() for all temporal classes and wrap in quotes
+        return "\"" + temporalObj.toString() + "\"";
     }
 
     // Enum serialization
@@ -164,16 +173,27 @@ public class JsonSerializer {
         return "[" + String.join(",", serializedItems) + "]";
     }
 
-    // Object serialization with field caching
+    // Object serialization with field caching and improved security
     private static String serializeObject(Object obj, SerializationContext context) {
         List<String> serializedFields = new ArrayList<>();
+        Class<?> clazz = obj.getClass();
+
+        // Skip trying to serialize Java internal classes
+        if (clazz.getName().startsWith("java.") || clazz.getName().startsWith("javax.")) {
+            return "\"" + obj.toString() + "\"";
+        }
 
         // Cached field retrieval
-        List<Field> fields = FIELD_CACHE.computeIfAbsent(obj.getClass(), cls -> {
+        List<Field> fields = FIELD_CACHE.computeIfAbsent(clazz, cls -> {
             List<Field> computedFields = new ArrayList<>();
-            for (Field field : cls.getDeclaredFields()) {
-                field.setAccessible(true);
-                computedFields.add(field);
+            // Include fields from superclasses
+            Class<?> currentClass = cls;
+            while (currentClass != null && !currentClass.equals(Object.class)) {
+                for (Field field : currentClass.getDeclaredFields()) {
+                    field.setAccessible(true);
+                    computedFields.add(field);
+                }
+                currentClass = currentClass.getSuperclass();
             }
             return computedFields;
         });
@@ -185,7 +205,7 @@ public class JsonSerializer {
                 Object fieldValue = field.get(obj);
                 String serializedValue = serializeInternal(fieldValue, context);
                 serializedFields.add("\"" + fieldName + "\":" + serializedValue);
-            } catch (IllegalAccessException e) {
+            } catch (IllegalAccessException | SecurityException e) {
                 // Skip fields that can't be accessed
                 continue;
             }

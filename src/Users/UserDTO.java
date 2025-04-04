@@ -1,17 +1,23 @@
 package Users;
 
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDateTime;
 
+enum userType {
+    ADMIN, USUARIO, ANALISTA
+}
+enum userInvestimentStyle {
+    CONSERVADOR, MODERADO, ARROJADO
+}
 public class UserDTO {
-    private int id;
+    private Integer id;
     private String nome;
     private String email;
     private String senha;
-    private Date data_criacao;
-    private Date ultimo_login;
-    private String perfil;
-    private String ativo;
-    private Date deleted_at;
+    private Instant data_criacao;
+    private LocalDateTime ultimo_login;
+    private userType perfil;
+    private userInvestimentStyle estilo_investidor;
+    
+    public UserDTO() { }
 }
-
-

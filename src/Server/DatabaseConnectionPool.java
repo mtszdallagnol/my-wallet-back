@@ -32,7 +32,7 @@ public class DatabaseConnectionPool {
     private final long CONNECTION_IDLE_TIMEOUT = 10 * 60 * 1000;
     private final long VALIDATION_INTERVAL = 5 * 60 * 1000;
 
-    private final int MAX_CONNECTION_RETRIES = 3;
+    private final int MAX_CONNECTION_RETRIES = 8;
     private final long BASE_RETRY_DELAY_MS = 1 * 1000;
     private final double RETRY_BACKOFF_FACTOR = 2.0;
 
@@ -145,7 +145,7 @@ public class DatabaseConnectionPool {
         }
     }
 
-    private DatabaseConnectionPool() throws IOException, SQLException, Exception {
+    private DatabaseConnectionPool() throws Exception {
         Properties prop = new Properties();
 
         InputStream input = new FileInputStream("src/.env");
@@ -174,9 +174,9 @@ public class DatabaseConnectionPool {
         maintenanceExecutor.scheduleAtFixedRate(() -> {
             try {
                 validateConnections();
-                System.exit(1);
             } catch (SQLException e) {
                 logger.severe("Erro na validação das conexões: " + e.getMessage());
+                System.exit(1);
             }
         }, 30, 30, TimeUnit.SECONDS);
     }
@@ -192,12 +192,12 @@ public class DatabaseConnectionPool {
         }
     }
 
-    private synchronized void maintainConnectionPool() throws SQLException, Exception {
+    private synchronized void maintainConnectionPool() throws Exception {
         try {
             connectionPool.removeIf(PooledConnection::isExpired);
             activeConnection.removeIf(PooledConnection::isExpired);
 
-            for (int i = 0; (connectionPool.size() < MIN_CONNECTIONS) || i == MAX_CONNECTION_RETRIES; i++) {
+            for (int i = 0; i < MAX_CONNECTION_RETRIES && connectionPool.size() < MIN_CONNECTIONS; i++) {
                 connectionPool.add(new PooledConnection());
             }
 
@@ -205,9 +205,9 @@ public class DatabaseConnectionPool {
                 throw new SQLException("Falha ao manter número minimo de conexão com banco de dados");
             }
 
-            for (int i = 0; (connectionPool.size() > MAX_CONNECTIONS) || i == MAX_CONNECTION_RETRIES; i++) {
+            for (int i = 0; i < MAX_CONNECTION_RETRIES && connectionPool.size() > MAX_CONNECTIONS; i++) {
                 try {
-                    PooledConnection conn = connectionPool.remove(0);
+                    PooledConnection conn = connectionPool.removeFirst();
                     conn.close();
                 } catch (SQLException e) {
                     logger.warning("Falha ao fechar conexão com banco de dados");
@@ -283,7 +283,7 @@ public class DatabaseConnectionPool {
 
     public synchronized void returnConnection(Connection returnConn) {
         for (PooledConnection conn : activeConnection) {
-            boolean equals = false;
+            boolean equals;
             try {
                 equals = conn.getConnection() == returnConn;
             } catch (SQLException e) {
@@ -298,7 +298,7 @@ public class DatabaseConnectionPool {
         }
     }
 
-    public void shutdow() {
+    public void shutdown() {
         maintenanceExecutor.shutdown();
 
         CopyOnWriteArrayList<PooledConnection> allConnections = new CopyOnWriteArrayList<>(connectionPool);
@@ -315,7 +315,7 @@ public class DatabaseConnectionPool {
         }
     }
 
-    public static synchronized DatabaseConnectionPool getInstance() throws IOException, SQLException, Exception {
+    public static synchronized DatabaseConnectionPool getInstance() throws Exception {
         if (instance == null) {
             instance = new DatabaseConnectionPool();
         }

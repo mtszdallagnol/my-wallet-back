@@ -1,16 +1,18 @@
 package General;
 
 import Responses.ServiceResponse;
-import java.util.concurrent.CompletableFuture;
+
+import java.sql.SQLException;
+import java.util.List;
 
 public interface ServiceInterface<T> {
-    ServiceResponse getAll();
+    ServiceResponse<List<T>> getAll() throws Exception;
 
-    ServiceResponse getById(int id);
+    ServiceResponse<T> getById(int id);
 
-    ServiceResponse post(T data);
+    ServiceResponse<Void> post(T data);
 
-    ServiceResponse update(T data);
+    ServiceResponse<Void> update(T data);
 
-    ServiceResponse delete(int id);
+    ServiceResponse<Void> delete(int id);
 }

@@ -63,7 +63,7 @@ public class WebServer {
             logger.info("Desligando servidor...");
             _Server.stop(0);
 
-            databaseConnectionPool.shutdow();
+            databaseConnectionPool.shutdown();
 
             httpThreadPool.shutdown();
             dbThreadPool.shutdown();
@@ -91,6 +91,8 @@ public class WebServer {
         JsonSerializer.SerializationResult result = JsonSerializer.serialize(response);
         if (result.isSuccess()) {
             finalResponse = result.getJsonString();
+        } else {
+            System.out.println(result.getError().getMessage());
         }
 
         exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
