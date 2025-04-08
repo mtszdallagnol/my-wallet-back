@@ -1,18 +1,18 @@
 package General;
 
-import Responses.ServiceResponse;
+import Responses.ControllerResponse;
+import Users.UserDTO;
 
-import java.sql.SQLException;
 import java.util.List;
 
 public interface ServiceInterface<T> {
-    ServiceResponse<List<T>> getAll() throws Exception;
+    ControllerResponse<List<UserDTO>> getAll() throws Exception;
 
-    ServiceResponse<T> getById(int id) throws Exception;
+    ControllerResponse<UserDTO> getById(int id) throws Exception;
 
-    ServiceResponse<Void> post(T data) throws Exception;
+    ControllerResponse<Void> post(T data) throws Exception;
 
-    ServiceResponse<Void> update(T data) throws Exception;
+    ControllerResponse<Void> update(T data) throws Exception;
 
-    ServiceResponse<Void> delete(int id) throws Exception;
+    ControllerResponse<Void> delete(int id) throws Exception;
 }

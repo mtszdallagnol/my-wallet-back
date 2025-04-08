@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.*;
@@ -46,7 +47,7 @@ public class WebServer {
 
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 
-        _Server.createContext("/users", exchange -> { UserController.handle(exchange); } );
+        _Server.createContext("/users", new UserController()::handle);
 
         ThreadPoolExecutor httpThreadPool = new ThreadPoolExecutor(
                 Runtime.getRuntime().availableProcessors(),
@@ -96,9 +97,9 @@ public class WebServer {
         }
 
         exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
-        exchange.sendResponseHeaders(response.httpStatus, finalResponse.getBytes("UTF-8").length);
+        exchange.sendResponseHeaders(response.httpStatus, finalResponse.getBytes(StandardCharsets.UTF_8).length);
         OutputStream os = exchange.getResponseBody();
-        os.write(finalResponse.getBytes("UTF-8"));
+        os.write(finalResponse.getBytes(StandardCharsets.UTF_8));
         os.close();
     }
 }

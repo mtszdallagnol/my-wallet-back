@@ -11,6 +11,8 @@ enum userType {
 enum userInvestimentStyle {
     CONSERVADOR, MODERADO, ARROJADO
 }
+
+@Table(TableName = "usuarios")
 public class UserDTO {
     @Required
     private Integer id;
