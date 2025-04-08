@@ -5,6 +5,7 @@ import General.ServiceInterface;
 import Responses.ServiceResponse;
 import Server.WebServer;
 
+import java.security.Provider;
 import java.sql.*;
 import java.util.*;
 
@@ -104,15 +105,14 @@ public class UserService implements ServiceInterface<UserDTO> {
             user = objectMapper.map(row);
         } else {
             // Se na primeira e unica verificação não existe nenhum registro nao existe registro com referente id ->
-            // Mas a requisição em si foi um sucesso
-            response.isSuccessful = true;
+            response.isSuccessful = false;
             response.msg = "Nenhum registro com referente ID";
 
             return response;
         }
 
         // Verifica se algum erro aconteceu durante o processo de mapeamento dos dados do bando para objeto java ->
-        // estamos retornando para o usuario o erro (so para n derrubar o servidor) mas o certo e n ter erro nenhum ->
+        // estamos retornando para o usuário o erro (so para n derrubar o servidor) mas o certo e n ter erro nenhum ->
         // nessa etapa
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) {
@@ -141,7 +141,29 @@ public class UserService implements ServiceInterface<UserDTO> {
     }
 
     @Override
-    public ServiceResponse delete (int id) {
-        return null;
+    public ServiceResponse<Void> delete (int id) throws Exception {
+        // Sempre retorne ServiceResponse o que varia e o dentro nesse caso e so o que não ->
+        // retornamos nenhum dado do banco
+        ServiceResponse<Void> response = new ServiceResponse<>();
+
+        // Pegue uma conexão com o bando de dados
+        Connection conn = WebServer.databaseConnectionPool.getConnection();
+        // Prepare a string sql, isso é importante principalmente com variaveis para sanatizar as paradas
+        PreparedStatement stmt = conn.prepareStatement(
+                "DELETE FROM usuarios WHERE id=?"
+        );
+
+        // Define a primeira wildCard ? como id de maneira sanatizada
+        stmt.setInt(1, id);
+
+        // Pega o numero de linhas alteradas no banco na execucao da query preparada
+        int rowCount = stmt.executeUpdate();
+
+        response.isSuccessful = rowCount > 0;
+        response.rowChanges = rowCount;
+
+        // SEMPRE que pegar uma conexão com o banco retorne-a quando terminar se não o servidor explode >=(
+        WebServer.databaseConnectionPool.returnConnection(conn);
+        return response;
     }
 }
