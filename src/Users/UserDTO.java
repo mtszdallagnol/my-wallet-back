@@ -14,6 +14,9 @@ enum userInvestimentStyle {
 
 @Table(TableName = "usuarios")
 public class UserDTO {
+    //
+    // =========== Seção de membros privados ===========
+    //
     private Integer id;
 
     @Required
@@ -43,6 +46,10 @@ public class UserDTO {
     private userType perfil;
 
     private userInvestimentStyle estilo_investidor;
+
+    //
+    // =========== Getters and Setters ===========
+    //
     
     public UserDTO() { }
 
