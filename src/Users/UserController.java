@@ -1,45 +1,119 @@
 package Users;
 
+import Exceptions.InvalidParamsException;
+import Exceptions.MappingException;
+import Exceptions.ValidationException;
 import General.GeneralController;
-import Server.WebServer;
-import General.Utils;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import Responses.ControllerResponse;
+import General.ObjectMapper;
+import Server.WebServer;
 
 public class UserController extends GeneralController {
 
     @Override
-    protected void handleGET(Utils.queryType type, int targetId) {
-        CompletableFuture<ControllerResponse<?>> responseFuture;
+    protected void handleGET(Map<String, Object> params) {
+        CompletableFuture<Object> responseFuture;
 
-        UserService service = new UserService();
-        if (type == Utils.queryType.MULTIPLE) {
-            responseFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return service.getAll();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }, WebServer.dbThreadPool);
-        } else {
-            responseFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return service.getById(targetId);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }, WebServer.dbThreadPool);
-        }
+        UserService userService = new UserService(conn);
+        responseFuture = CompletableFuture.supplyAsync(() -> {
+            try { return userService.get(params); } catch (Exception e) { throw new RuntimeException(e); }
+        });
 
-        responseFuture.thenAccept(result -> response = result);
+        responseFuture.exceptionally(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause(); }
+            response.msg = e.getMessage();
+
+            response.data = null;
+
+            if (e instanceof MappingException) {
+                response.httpStatus = 400;
+                response.errors = ((MappingException) e).getErrors();
+            } else if (e instanceof InvalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = ((InvalidParamsException) e).getErrors();
+            }
+            else {
+                response.httpStatus = 500;
+                response.errors = null;
+            }
+
+            try { WebServer.SendResponse(exchange, response); } catch (IOException ex) { throw new RuntimeException(ex); }
+            finally { WebServer.databaseConnectionPool.returnConnection(conn); }
+
+            return null;
+        });
+
+        responseFuture.thenAccept(result -> {
+            response.error = false;
+            response.msg = "Sucesso ao recuperar usuário(s)";
+            response.httpStatus = 200;
+            response.data = result;
+
+            try { WebServer.SendResponse(exchange, response); } catch (Exception e) { throw new RuntimeException(e); }
+            finally { WebServer.databaseConnectionPool.returnConnection(conn); }
+        });
     }
 
 
     @Override
-    protected void handlePOST() {
+    protected void handlePOST(Map<String, Object> params) {
+        CompletableFuture<Void> responseFuture;
 
+        UserService userService = new UserService(conn);
+        responseFuture = CompletableFuture.supplyAsync(() -> {
+            try { userService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
+            return null;
+        }, WebServer.dbThreadPool);
+
+        responseFuture.exceptionally(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause(); }
+            response.msg = e.getMessage();
+
+            switch (e) {
+                case InvalidParamsException invalidParamsException -> {
+                    response.httpStatus = 400;
+                    response.errors = invalidParamsException.getErrors();
+                }
+                case MappingException mappingException -> {
+                    response.httpStatus = 500;
+                    response.errors = mappingException.getErrors();
+                }
+                case ValidationException validationException -> {
+                    response.httpStatus = 400;
+                    response.errors = validationException.getErrors();
+                }
+                default -> {
+                    response.httpStatus = 500;
+                    response.errors = null;
+                }
+            }
+
+            try { WebServer.SendResponse(exchange, response); } catch (IOException ex) { throw new RuntimeException(ex); }
+            finally { WebServer.databaseConnectionPool.returnConnection(conn); }
+
+            return null;
+        });
+
+        responseFuture.thenRun(() -> {
+            response.error = false;
+            response.msg = "Sucesso ao cadastrar usuário";
+            response.httpStatus = 200;
+            response.data = null;
+            response.errors = null;
+
+            try { WebServer.SendResponse(exchange, response); } catch (IOException e) { throw new RuntimeException(e); }
+            finally { WebServer.databaseConnectionPool.returnConnection(conn); }
+        });
     }
 
     @Override
@@ -48,18 +122,44 @@ public class UserController extends GeneralController {
     }
 
     @Override
-    protected void handleDELETE(int id) {
-        CompletableFuture<ControllerResponse<Void>> responseFuture;
+    protected void handleDELETE(Map<String, Object> params) {
+        CompletableFuture<Void> responseFuture;
 
-        UserService service = new UserService();
+        UserService userService = new UserService(conn);
         responseFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                return service.delete(id);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            try { userService.delete(params); } catch (Exception e) { throw new RuntimeException(e); }
+            return null;
+        }, WebServer.dbThreadPool);
+
+        responseFuture.exceptionally(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause(); }
+            response.msg = e.getMessage();
+
+            if (e instanceof InvalidParamsException invalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = invalidParamsException.getErrors();
+            } else {
+                response.httpStatus = 500;
+                response.errors = null;
             }
+
+            try { WebServer.SendResponse(exchange, response); } catch (IOException ex) { throw new RuntimeException(ex); }
+            finally { WebServer.databaseConnectionPool.returnConnection(conn); }
+
+            return null;
         });
 
-        responseFuture.thenAccept(result -> response = result );
+        responseFuture.thenRun(() -> {
+            response.error = false;
+            response.msg = "Sucesso ao deletar usuário";
+            response.httpStatus = 200;
+            response.data = null;
+            response.errors = null;
+
+            try { WebServer.SendResponse(exchange, response); } catch (IOException e) { throw new RuntimeException(e); }
+            finally { WebServer.databaseConnectionPool.returnConnection(conn); }
+        });
     }
 }

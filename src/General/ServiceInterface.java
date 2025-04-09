@@ -1,18 +1,16 @@
 package General;
 
 import Responses.ControllerResponse;
-import Users.UserDTO;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ServiceInterface<T> {
-    ControllerResponse<List<UserDTO>> getAll() throws Exception;
+    List<T> get(Map<String, Object> params) throws Exception;
 
-    ControllerResponse<UserDTO> getById(int id) throws Exception;
+    void post(Map<String, Object> userToPost) throws Exception;
 
-    ControllerResponse<Void> post(T data) throws Exception;
+    void update(Map<String, Object> userToUpdate) throws Exception;
 
-    ControllerResponse<Void> update(T data) throws Exception;
-
-    ControllerResponse<Void> delete(int id) throws Exception;
+    void delete(Map<String, Object> params) throws Exception;
 }

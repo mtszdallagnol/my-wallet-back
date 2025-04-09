@@ -1,6 +1,7 @@
 package Server;
 
 import Responses.ControllerResponse;
+import Users.UserService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -14,7 +15,7 @@ import java.util.logging.Logger;
 
 import General.ColoredLogger;
 import Users.UserController;
-import General.JsonSerializer;
+import General.JsonParsers;
 
 public class WebServer {
     private static HttpServer _Server = null;
@@ -47,7 +48,8 @@ public class WebServer {
 
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 
-        _Server.createContext("/users", new UserController()::handle);
+        _Server.createContext("/users", exchange -> { try { new UserController().handle(exchange); }
+            catch (Exception e) { throw new RuntimeException(e); } });
 
         ThreadPoolExecutor httpThreadPool = new ThreadPoolExecutor(
                 Runtime.getRuntime().availableProcessors(),
@@ -89,7 +91,7 @@ public class WebServer {
     public static void SendResponse(HttpExchange exchange, ControllerResponse response) throws IOException {
         String finalResponse = "{\"error\": 1, \"httpStatus\": 500, \"msg\": \"Erro ao serializar resposta para JSON\", \"data\": null}";
 
-        JsonSerializer.SerializationResult result = JsonSerializer.serialize(response);
+        JsonParsers.SerializationResult result = JsonParsers.serialize(response);
         if (result.isSuccess()) {
             finalResponse = result.getJsonString();
         } else {

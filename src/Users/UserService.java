@@ -1,79 +1,60 @@
 package Users;
 
+import Exceptions.InvalidParamsException;
+import Exceptions.MappingException;
+import Exceptions.ValidationException;
 import General.ObjectMapper;
 import General.ServiceInterface;
-import Responses.ControllerResponse;
-import Server.WebServer;
+import General.Utils;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.util.*;
 
 public class UserService implements ServiceInterface<UserDTO> {
     @Override
-    public ControllerResponse<List<UserDTO>> getAll() throws Exception {
-        ControllerResponse<List<UserDTO>> response = new ControllerResponse<>();
+    public List<UserDTO> get(Map<String, Object> params) throws SQLException, MappingException, InvalidParamsException {
         ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
 
-        Connection conn = WebServer.databaseConnectionPool.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(
-                "SELECT * FROM usuarios"
-        );
-        ResultSet rs = stmt.executeQuery();
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : params.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
 
-        ResultSetMetaData metaData = rs.getMetaData();
-        int columnCount = metaData.getColumnCount();
+        StringBuilder query = new StringBuilder("SELECT * FROM usuarios");
+        if (!params.isEmpty()) {
+            query.append(" WHERE ");
 
-        List<UserDTO> users = new ArrayList<>();
-        while(rs.next()) {
-            Map<String, Object> row = new HashMap<>();
-
-            for (int i = 1; i <= columnCount; i++) {
-                String columnName = metaData.getColumnName(i);
-                Object value = rs.getObject(i);
-                row.put(columnName, value);
+            for (String key : params.keySet()) {
+                String temp = key + " = ? AND ";
+                query.append(temp);
             }
 
-            users.add(objectMapper.map(row));
+            query.delete(query.length() - 5, query.length());
+            query.append(";");
         }
 
-        List<String> errors = objectMapper.getErrors();
-        if (!errors.isEmpty()) {
-            response.error = true;
-            response.httpStatus = 500;
-            response.msg = "Erro ao mapear objeto do banco de dados";
-            response.errors = errors;
+        PreparedStatement stmt = conn.prepareStatement(query.toString());
 
-            return response;
+        if (!params.isEmpty()) {
+            int enumerator = 1;
+            for (Object value : params.values()) {
+                stmt.setObject(enumerator, value);
+                enumerator++;
+            }
         }
-
-        response.error = false;
-        response.httpStatus = 200;
-        response.msg = "Sucesso ao recuperar usuários";
-        response.data = users;
-
-        WebServer.databaseConnectionPool.returnConnection(conn);
-        return response;
-    }
-
-    @Override
-    public ControllerResponse<UserDTO> getById(int id) throws Exception {
-        ControllerResponse<UserDTO> response = new ControllerResponse<>();
-        ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
-
-        Connection conn = WebServer.databaseConnectionPool.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(
-                "SELECT * FROM usuarios WHERE id = ?"
-        );
-
-        stmt.setInt(1, id);
 
         ResultSet rs = stmt.executeQuery();
 
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
 
-        UserDTO user;
-        if (rs.next()) {
+        List<UserDTO> response = new ArrayList<>();
+        while (rs.next()) {
             Map<String, Object> row = new HashMap<>();
 
             for (int i = 1; i <= columnCount; i++) {
@@ -82,61 +63,93 @@ public class UserService implements ServiceInterface<UserDTO> {
                 row.put(columnName, value);
             }
 
-            user = objectMapper.map(row);
-        } else {
-            response.error = true;
-            response.httpStatus = 400;
-            response.msg = "Nenhum registro com referente ID";
-
-            return response;
+             response.add(objectMapper.map(row));
         }
 
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) {
-            response.error = true;
-            response.httpStatus = 500;
-            response.msg = "Erro ao mapear objeto do banco de dados";
-            response.errors = errors;
-
-            return response;
+            throw new MappingException("Falha ao mapear objeto", errors);
         }
 
-        response.error = false;
-        response.data = user;
-
-        WebServer.databaseConnectionPool.returnConnection(conn);
         return response;
     }
 
     @Override
-    public ControllerResponse<Void> post(UserDTO user) {
-        return null;
-    }
+    public void post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
+        ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
 
-    @Override
-    public ControllerResponse<Void> update(UserDTO user) {
-        return null;
-    }
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : userToPost.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+        UserDTO user = objectMapper.map(userToPost, conn);
 
-    @Override
-    public ControllerResponse<Void> delete (int id) throws Exception {
-        ControllerResponse<Void> response = new ControllerResponse<>();
+        List<String> errors = objectMapper.getErrors();
+        if (!errors.isEmpty()) {
+            throw new MappingException("Falha ao mapear objeto", errors);
+        }
 
-        Connection conn = WebServer.databaseConnectionPool.getConnection();
+        List<String> validationErrors = objectMapper.getValidationErrors();
+        if (!validationErrors.isEmpty()) {
+            throw new ValidationException("Falha de validação", validationErrors);
+        }
+
         PreparedStatement stmt = conn.prepareStatement(
-                "DELETE FROM usuarios WHERE id=?"
+                "INSERT INTO usuarios (nome, email, senha, salt, perfil)" +
+                    "VALUES (?, ?, ?, ?, ?);"
         );
 
-        stmt.setInt(1, id);
+        byte[] salt = Utils.getSalt();
+        stmt.setString(1, user.getNome());
+        stmt.setString(2, user.getEmail());
+        stmt.setString(3, Utils.hashPassword(user.getSenha(), salt));
+        stmt.setBytes(4, salt);
+        stmt.setString(5, user.getPerfil());
 
-        int rowCount = stmt.executeUpdate();
-
-        response.error = rowCount <= 0;
-        response.httpStatus = response.error ? 400 : 200;
-        response.msg = response.error ? "Nenhum registro com referente ID" : "Usuário removido com sucesso";
-        response.rowChanges = rowCount;
-
-        WebServer.databaseConnectionPool.returnConnection(conn);
-        return response;
+        stmt.executeUpdate();
     }
+
+    @Override
+    public void update(Map<String, Object> userToUpdate) {
+        return;
+    }
+
+    @Override
+    public void delete (Map<String, Object> params) throws SQLException, InvalidParamsException {
+        ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
+
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : params.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+
+        StringBuilder query = new StringBuilder("DELETE FROM usuarios WHERE ");
+        for (String key : params.keySet()) {
+            String temp = key + " = ? AND ";
+            query.append(temp);
+        }
+        query.delete(query.length() - 5, query.length());
+        query.append(";");
+
+        PreparedStatement stmt = conn.prepareStatement(query.toString());
+        int enumerator = 1;
+        for (Object value : params.values()) {
+            stmt.setObject(enumerator, value);
+            enumerator++;
+        }
+
+        stmt.executeUpdate();
+    }
+
+    public UserService(Connection conn) {
+        this.conn = conn;
+    }
+
+    Connection conn;
 }

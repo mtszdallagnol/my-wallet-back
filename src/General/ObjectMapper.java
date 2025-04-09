@@ -57,11 +57,16 @@ public class ObjectMapper<T> {
                 Object value = row.get(columnName);
 
                 if (field.isAnnotationPresent(Required.class) && (value == null || value.equals(""))) {
-                    validationErrors.add("Campo: " + columnName + "é requerido mas tem valor nulo");
+                    validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
                     continue;
                 }
 
                 Object convertedValue = convertInstanceOfObject(value, field.getType());
+                if (convertedValue == null) {
+                    field.set(dto, null);
+                    continue;
+                }
+
                 if (!validateFieldValue(field, convertedValue, conn)) {
                     continue;
                 }
@@ -74,6 +79,10 @@ public class ObjectMapper<T> {
             errors.add(e.getMessage());
             return null;
         }
+    }
+
+    public boolean hasField(String fieldName) {
+        return fields.containsKey(fieldName);
     }
 
     private boolean validateFieldValue(Field field, Object value, Connection conn) {
@@ -157,7 +166,19 @@ public class ObjectMapper<T> {
             }
 
             if (target.isEnum() && value instanceof String) {
+                Object[] enumConstants = target.getEnumConstants();
+
+                for (Object constant : enumConstants) {
+                    if (!((Enum<?>) constant).name().equalsIgnoreCase(value.toString())) {
+                        validationErrors.add("Valor de enum inválido");
+                        return null;
+                    }
+                }
+
                 return Enum.valueOf((Class<Enum>) target, (String) value);
+            } else if (target.isEnum()) {
+                validationErrors.add("Tipo de enum inválido");
+                return null;
             }
 
             return target.cast(value);

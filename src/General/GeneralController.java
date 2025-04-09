@@ -2,47 +2,72 @@ package General;
 
 import Responses.ControllerResponse;
 import Server.WebServer;
+import Users.UserDTO;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Map;
 
 abstract public class GeneralController {
-    protected ControllerResponse<?> response = new ControllerResponse<>();
+    protected ControllerResponse response = new ControllerResponse();
+    protected HttpExchange exchange;
+    protected Connection conn;
+    protected UserDTO user;
 
-    public void handle(HttpExchange exchange) throws IOException {
+    public void handle(HttpExchange exchange) throws IOException, SQLException {
+        // Implementar melhor jeito de lidar quando não tem nenhum conexão disponivel
+        this.conn = WebServer.databaseConnectionPool.getConnection();
+        this.exchange = exchange;
+
         String requestType = exchange.getRequestMethod();
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+
+        Map<String, Object> params = Utils.getParamsFromQuery(exchange.getRequestURI().getQuery());
 
         if (requestType.equalsIgnoreCase("GET")) {
-            String query = exchange.getRequestURI().getQuery();
-            Utils.queryType type = Utils.getParamIdType(query);
 
-            if (type == Utils.queryType.INVALID) {
-                response.error = true;
-                response.httpStatus = 400;
-                response.msg = "Parametrização da requesição inválida";
-            }
+            handleGET(params);
 
-            handleGET(type, type == Utils.queryType.SINGLE ?
-                    Integer.parseInt(query.split("=")[1]) : 0);
-
-            WebServer.SendResponse(exchange, response);
         } else if (requestType.equalsIgnoreCase("POST")) {
-            System.out.println("POST");
-        } else if (requestType.equalsIgnoreCase("PUT")) {
-            System.out.println("PUT");
-        } else if (requestType.equalsIgnoreCase("DELETE")) {
-            String query = exchange.getRequestURI().getQuery();
-            Utils.queryType type = Utils.getParamIdType(query);
 
-            if (type == Utils.queryType.INVALID || type == Utils.queryType.MULTIPLE) {
+            if (contentType == null || !contentType.contains("json")) {
                 response.error = true;
                 response.httpStatus = 400;
-                response.msg = "Parametrização da requesição inválida";
+                response.msg = "Tipo de payload não suportado atualmente";
+                response.data = null;
+                response.errors = null;
+
+                WebServer.SendResponse(exchange, response);
+                return;
             }
 
-            handleDELETE(Integer.parseInt(query.split("=")[1]));
+            JsonParsers.DeserializationResult<Map<String, Object>> result = JsonParsers.deserialize(exchange.getRequestBody());
 
-            WebServer.SendResponse(exchange, response);
+            if (!result.isSuccess()) {
+                response.error = true;
+                response.httpStatus = 500;
+                response.msg = "Erro ao deserializar JSON: " + result.getError().getMessage();
+                response.data = null;
+                response.errors = null;
+
+                WebServer.SendResponse(exchange, response);
+                return;
+            }
+
+            Map<String, Object> dataMap = result.getValue();
+
+            handlePOST(dataMap);
+
+        } else if (requestType.equalsIgnoreCase("PUT")) {
+
+            System.out.println("PUT");
+
+        } else if (requestType.equalsIgnoreCase("DELETE")) {
+
+            handleDELETE(params);
+
         } else {
             response.error = true;
             response.httpStatus = 405;
@@ -52,11 +77,11 @@ abstract public class GeneralController {
         }
     }
 
-    abstract protected void handleGET(Utils.queryType type, int id);
+    abstract protected void handleGET(Map<String, Object> params);
 
-    abstract protected void handlePOST();
+    abstract protected void handlePOST(Map<String, Object> params);
 
     abstract protected void handlePUT();
 
-    abstract protected void handleDELETE(int id);
+    abstract protected void handleDELETE(Map<String, Object> params);
 }

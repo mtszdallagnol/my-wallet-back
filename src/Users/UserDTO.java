@@ -14,7 +14,6 @@ enum userInvestimentStyle {
 
 @Table(TableName = "usuarios")
 public class UserDTO {
-    @Required
     private Integer id;
 
     @Required
@@ -33,6 +32,9 @@ public class UserDTO {
     @MaxLength(255)
     private String senha;
 
+    @MaxLength(16)
+    private byte[] salt;
+
     private Instant data_criacao;
 
     private LocalDateTime ultimo_login;
@@ -43,4 +45,40 @@ public class UserDTO {
     private userInvestimentStyle estilo_investidor;
     
     public UserDTO() { }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getSenha() {
+        return senha;
+    }
+
+    public byte[] getSalt() {
+        return salt;
+    }
+
+    public Instant getData_criacao() {
+        return data_criacao;
+    }
+
+    public LocalDateTime getUltimo_login() {
+        return ultimo_login;
+    }
+
+    public String getPerfil() {
+        return perfil.name();
+    }
+
+    public String getEstilo_investidor() {
+        return estilo_investidor.name();
+    }
 }
