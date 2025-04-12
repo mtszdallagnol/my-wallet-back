@@ -98,8 +98,8 @@ public class UserService implements ServiceInterface<UserDTO> {
         }
 
         PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO usuarios (nome, email, senha, salt, perfil)" +
-                    "VALUES (?, ?, ?, ?, ?);"
+                "INSERT INTO usuarios (nome, email, senha, salt)" +
+                    "VALUES (?, ?, ?, ?);"
         );
 
         byte[] salt = Utils.getSalt();
@@ -107,7 +107,6 @@ public class UserService implements ServiceInterface<UserDTO> {
         stmt.setString(2, user.getEmail());
         stmt.setString(3, Utils.hashPassword(user.getSenha(), salt));
         stmt.setBytes(4, salt);
-        stmt.setString(5, user.getPerfil());
 
         stmt.executeUpdate();
     }

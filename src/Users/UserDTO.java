@@ -42,7 +42,6 @@ public class UserDTO {
 
     private LocalDateTime ultimo_login;
 
-    @Required
     private userType perfil;
 
     private userInvestimentStyle estilo_investidor;
