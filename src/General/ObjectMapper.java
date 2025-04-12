@@ -36,7 +36,7 @@ public class ObjectMapper<T> {
                 Field field = entry.getValue();
                 Object value = row.get(columnName);
 
-                Object convertedValue = convertInstanceOfObject(value, field.getType());
+                Object convertedValue = convertInstanceOfObject(value, field);
                 field.set(dto, convertedValue);
             }
 
@@ -61,7 +61,7 @@ public class ObjectMapper<T> {
                     continue;
                 }
 
-                Object convertedValue = convertInstanceOfObject(value, field.getType());
+                Object convertedValue = convertInstanceOfObject(value, field);
                 if (convertedValue == null) {
                     field.set(dto, null);
                     continue;
@@ -147,12 +147,14 @@ public class ObjectMapper<T> {
         return true;
     }
 
-    private Object convertInstanceOfObject(Object value, Class<?> target) {
+    private Object convertInstanceOfObject(Object value, Field targetField) {
+        Class<?> target = targetField.getType();
+
         if (value == null) {
             return null;
         }
 
-        if (target.isInstance(value)) {
+        if (target.isInstance(value) ) {
             return value;
         }
 
@@ -169,15 +171,20 @@ public class ObjectMapper<T> {
                 Object[] enumConstants = target.getEnumConstants();
 
                 for (Object constant : enumConstants) {
-                    if (!((Enum<?>) constant).name().equalsIgnoreCase(value.toString())) {
-                        validationErrors.add("Valor de enum inválido");
-                        return null;
+                    if (((Enum<?>) constant).name().equalsIgnoreCase(value.toString())) {
+                        return Enum.valueOf((Class<Enum>) target, (String) value);
                     }
                 }
 
-                return Enum.valueOf((Class<Enum>) target, (String) value);
+                validationErrors.add(targetField.getName() + ": Valor de enum inválido");
+                return null;
             } else if (target.isEnum()) {
-                validationErrors.add("Tipo de enum inválido");
+                validationErrors.add(targetField.getName() + ": Tipo de enum inválido");
+                return null;
+            }
+
+            if (!target.isInstance(value)) {
+                validationErrors.add(targetField.getName() + ": Tipo de dado inválido");
                 return null;
             }
 
