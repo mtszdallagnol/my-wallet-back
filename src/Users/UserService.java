@@ -5,17 +5,19 @@ import Exceptions.MappingException;
 import Exceptions.ValidationException;
 import General.ObjectMapper;
 import General.ServiceInterface;
-import General.Utils;
 
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.util.*;
 
-public class UserService implements ServiceInterface<UserDTO> {
+public class UserService implements ServiceInterface {
     @Override
-    public List<UserDTO> get(Map<String, Object> params) throws SQLException, MappingException, InvalidParamsException {
-        ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
+    public List<UserModel> get(Map<String, Object> params) throws SQLException, MappingException, InvalidParamsException {
+        ObjectMapper<UserModel> objectMapper = new ObjectMapper<>(UserModel.class);
 
         List<String> invalidFields = new ArrayList<>();
         for (String key : params.keySet()) {
@@ -53,7 +55,7 @@ public class UserService implements ServiceInterface<UserDTO> {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
 
-        List<UserDTO> response = new ArrayList<>();
+        List<UserModel> response = new ArrayList<>();
         while (rs.next()) {
             Map<String, Object> row = new HashMap<>();
 
@@ -75,8 +77,8 @@ public class UserService implements ServiceInterface<UserDTO> {
     }
 
     @Override
-    public void post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
-        ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
+    public Optional<Object> post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
+        ObjectMapper<UserModel> objectMapper = new ObjectMapper<>(UserModel.class);
 
         List<String> invalidFields = new ArrayList<>();
         for (String key : userToPost.keySet()) {
@@ -85,7 +87,7 @@ public class UserService implements ServiceInterface<UserDTO> {
             }
         }
         if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
-        UserDTO user = objectMapper.map(userToPost, conn);
+        UserModel user = objectMapper.map(userToPost, conn);
 
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) {
@@ -102,23 +104,25 @@ public class UserService implements ServiceInterface<UserDTO> {
                     "VALUES (?, ?, ?, ?);"
         );
 
-        byte[] salt = Utils.getSalt();
+        byte[] salt = getSalt();
         stmt.setString(1, user.getNome());
         stmt.setString(2, user.getEmail());
-        stmt.setString(3, Utils.hashPassword(user.getSenha(), salt));
+        stmt.setString(3, hashPassword(user.getSenha(), salt));
         stmt.setBytes(4, salt);
 
         stmt.executeUpdate();
+
+        return Optional.empty();
     }
 
     @Override
-    public void update(Map<String, Object> userToUpdate) {
-        return;
+    public Optional<Object> update(Map<String, Object> userToUpdate) {
+        return null;
     }
 
     @Override
     public void delete (Map<String, Object> params) throws SQLException, InvalidParamsException {
-        ObjectMapper<UserDTO> objectMapper = new ObjectMapper<>(UserDTO.class);
+        ObjectMapper<UserModel> objectMapper = new ObjectMapper<>(UserModel.class);
 
         List<String> invalidFields = new ArrayList<>();
         for (String key : params.keySet()) {
@@ -146,9 +150,29 @@ public class UserService implements ServiceInterface<UserDTO> {
         stmt.executeUpdate();
     }
 
+    public static String hashPassword(String password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+
+        byte[] hash = factory.generateSecret(spec).getEncoded();
+        return Base64.getEncoder().encodeToString(hash);
+    }
+
+    private static byte[] getSalt() {
+        SecureRandom sr = new SecureRandom();
+        byte[] salt = new byte[16];
+
+        sr.nextBytes(salt);
+
+        return salt;
+    }
+
     public UserService(Connection conn) {
         this.conn = conn;
     }
 
-    Connection conn;
+    private final Connection conn;
+
+    private static final int ITERATIONS = 65536;
+    private static final int KEY_LENGTH = 256;
 }

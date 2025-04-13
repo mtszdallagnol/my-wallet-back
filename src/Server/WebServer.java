@@ -22,6 +22,7 @@ public class WebServer {
     public static DatabaseConnectionPool databaseConnectionPool;
     private static String ADDRESS = null;
     private static int PORT = -1;
+    public static String SECRET = null;
 
     public static final ExecutorService dbThreadPool = new ThreadPoolExecutor(
             Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
@@ -42,9 +43,10 @@ public class WebServer {
         Properties prop = new Properties();
         InputStream input = new FileInputStream("src/.env");
         prop.load(input);
+
         ADDRESS = prop.getProperty("ADDRESS");
         PORT = Integer.parseInt(prop.getProperty("PORT"));
-
+        SECRET = prop.getProperty("SECRET");
 
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 

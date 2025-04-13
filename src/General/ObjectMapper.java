@@ -108,10 +108,17 @@ public class ObjectMapper<T> {
         }
 
         if (field.isAnnotationPresent(Email.class)) {
-            String regex = "^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$";
+            String regex = "^(?=.{1,64}@)[A-Za-z0-9_!#$%&'*+/=?`{|}~^-]+(\\.[A-Za-z0-9_!#$%&'*+/=?`{|}~^-]+)*"
+                    + "@"
+                    + "(?=.{1,255}$)"
+                    + "("
+                    + "[A-Za-z0-9]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z][A-Za-z0-9]*)$" // Normal domain with letter in TLD
+                    + "|"
+                    + "[A-Za-z0-9]+(\\.[0-9]+){3}$" // IP-like domain (123.123.123.123)
+                    + ")";
 
             if (!value.toString().matches(regex)) {
-                validationErrors.add(fieldName + ": " + field.getAnnotation(Email.class).message());
+                validationErrors.add(fieldName + " : " + field.getAnnotation(Email.class).message());
                 return false;
             }
         }
@@ -126,15 +133,17 @@ public class ObjectMapper<T> {
 
         if (field.isAnnotationPresent(Unique.class)) {
             try {
-                PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM " + classInstance.getAnnotation(Table.class).TableName() +
+                PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).TableName() +
                         " WHERE " + field.getName() + " = ?");
-                stmt.setObject(1, value);
+
+                stmt.setString(1, value.toString());
 
                 ResultSet rs = stmt.executeQuery();
                 rs.next();
 
-                int count = rs.getInt("COUNT(*)");
-                if (count > 1) {
+                int count = rs.getInt("total");
+
+                if (count > 0) {
                     validationErrors.add(fieldName + ": " + field.getAnnotation(Unique.class).message());
                     return false;
                 }
