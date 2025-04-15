@@ -43,7 +43,7 @@ public class WebServer {
         }
 
         Properties prop = new Properties();
-        InputStream input = new FileInputStream("src/.env");
+        InputStream input = new FileInputStream(System.getProperty("envPath"));
         prop.load(input);
 
         ADDRESS = prop.getProperty("ADDRESS");

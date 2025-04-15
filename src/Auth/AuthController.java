@@ -106,7 +106,7 @@ public class AuthController {
         CompletableFuture.runAsync(() -> {
             try {
                 List<UserModel> listResponse = userService.get(Map.of("email", login.get("email")));
-                UserModel user = listResponse.isEmpty() ? null : listResponse.getFirst();
+                UserModel user = listResponse.isEmpty() ? null : listResponse.get(0);
 
                 if (user == null) {
                     response.error = true;
@@ -141,7 +141,7 @@ public class AuthController {
                 params.put("user_id", user.getId());
                 authService.post(params);
 
-                String cookie = String.format("refresh_token=%s; HttpOnly; Secure; Path=/; Max-Age=%d; SameSite=Strict",
+                String cookie = String.format("refresh_token=%s; HttpOnly; Path=/; Max-Age=%d; SameSite=Strict",
                         refreshToken, 7 * 24 * 60 * 60);
                 exchange.getResponseHeaders().add("Set-Cookie", cookie);
 
@@ -183,24 +183,20 @@ public class AuthController {
                 e = e.getCause(); }
             response.msg = e.getMessage();
 
-            switch (e) {
-                case InvalidParamsException invalidParamsException -> {
-                    response.httpStatus = 400;
-                    response.errors = invalidParamsException.getErrors();
-                }
-                case MappingException mappingException -> {
-                    response.httpStatus = 500;
-                    response.errors = mappingException.getErrors();
-                }
-                case ValidationException validationException -> {
-                    response.httpStatus = 400;
-                    response.errors = validationException.getErrors();
-                }
-                default -> {
-                    response.httpStatus = 500;
-                    response.errors = null;
-                }
+            if (e instanceof InvalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = ((InvalidParamsException) e).getErrors();
+            } else if (e instanceof MappingException) {
+                response.httpStatus = 500;
+                response.errors = ((MappingException) e).getErrors();
+            } else if (e instanceof ValidationException) {
+                response.httpStatus = 400;
+                response.errors = ((ValidationException) e).getErrors();
+            } else {
+                response.httpStatus = 500;
+                response.errors = null;
             }
+
 
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException ex) { throw new RuntimeException(ex); }

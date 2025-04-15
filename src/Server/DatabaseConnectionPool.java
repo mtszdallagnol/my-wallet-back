@@ -148,7 +148,7 @@ public class DatabaseConnectionPool {
     private DatabaseConnectionPool() throws Exception {
         Properties prop = new Properties();
 
-        InputStream input = new FileInputStream("src/.env");
+        InputStream input = new FileInputStream(System.getProperty("envPath"));
         prop.load(input);
 
         DB_LOCATION = prop.getProperty("DB_LOCATION");
@@ -207,7 +207,7 @@ public class DatabaseConnectionPool {
 
             for (int i = 0; i < MAX_CONNECTION_RETRIES && connectionPool.size() > MAX_CONNECTIONS; i++) {
                 try {
-                    PooledConnection conn = connectionPool.removeFirst();
+                    PooledConnection conn = connectionPool.remove(0);
                     conn.close();
                 } catch (SQLException e) {
                     logger.warning("Falha ao fechar conexão com banco de dados");

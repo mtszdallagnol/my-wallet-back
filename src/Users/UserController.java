@@ -98,13 +98,15 @@ public class UserController extends GeneralController {
                 e = e.getCause(); }
             response.msg = e.getMessage();
 
-            if (e instanceof InvalidParamsException invalidParamsException) {
+            if (e instanceof InvalidParamsException) {
+                InvalidParamsException invalidParamsException = (InvalidParamsException) e;
                 response.httpStatus = 400;
                 response.errors = invalidParamsException.getErrors();
             } else {
                 response.httpStatus = 500;
                 response.errors = null;
             }
+
 
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException ex) { throw new RuntimeException(ex); }

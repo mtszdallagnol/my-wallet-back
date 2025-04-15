@@ -128,7 +128,7 @@ abstract public class GeneralController {
         UserService userService = new UserService(conn);
         if (!Boolean.FALSE.equals(accessTokenValidation)) {
             int userID = (Integer) accessTokenValidation;
-            user = userService.get(Map.of("id", userID)).getFirst();
+            user = userService.get(Map.of("id", userID)).get(0);
             return;
         }
 
@@ -165,7 +165,7 @@ abstract public class GeneralController {
 
         AuthService authService = new AuthService(conn);
         List<RefreshTokenModel> resultList = authService.get(Map.of("token", refresh_token));
-        RefreshTokenModel refreshTokenDatabase = resultList.isEmpty() ? null : resultList.getFirst();
+        RefreshTokenModel refreshTokenDatabase = resultList.isEmpty() ? null : resultList.get(0);
         if (refreshTokenDatabase == null) {
             response.error = true;
             response.httpStatus = 401;

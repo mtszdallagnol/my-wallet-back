@@ -200,7 +200,7 @@ public class AuthService implements ServiceInterface<RefreshTokenModel> {
 
         Instant exp = Instant.ofEpochSecond(((Number) payloadMap.get("exp")).longValue());
 
-        if (Instant.now().isBefore(exp.minusSeconds(2 * 60 * 60))) {
+        if (Instant.now().isBefore(exp)) {
             return Integer.parseInt((String) payloadMap.get("sub"));
         }
 
