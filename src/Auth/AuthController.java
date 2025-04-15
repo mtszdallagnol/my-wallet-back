@@ -156,6 +156,13 @@ public class AuthController {
                 response.httpStatus = 200;
                 response.msg = "Logado com sucesso";
                 response.data.put("access_token", tokens.accessToken);
+
+                user.setId(null);
+                user.setSenha(null);
+                user.setSalt(null);
+                user.setData_criacao(null);
+
+                response.data.put("usuario", user);
                 response.errors = null;
 
                 WebServer.SendResponse(exchange, response);
@@ -222,6 +229,15 @@ public class AuthController {
             response.msg = "Sucesso ao cadastrar usuário";
             response.httpStatus = 200;
             response.data.put("access_token", tokens.accessToken);
+            try { result = Optional.of(userService.get(Map.of("id", result.get().getId())).get(0)); }
+            catch (SQLException e) { throw new RuntimeException(e); }
+
+            result.get().setId(null);
+            result.get().setSenha(null);
+            result.get().setSalt(null);
+            result.get().setData_criacao(null);
+
+            response.data.put("user", result.get());
             response.errors = null;
 
             try { WebServer.SendResponse(exchange, response); }

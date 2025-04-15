@@ -3,7 +3,6 @@ package Users;
 import Anotations.*;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 @Table(TableName = "usuarios")
 public class UserModel {
@@ -61,6 +60,12 @@ public class UserModel {
 
     public byte[] getSalt() { return salt; }
 
-    public void setId(int id) { this.id = id; }
+    public void setId(Integer id) { this.id = id; }
+
+    public void setSenha(String senha) { this.senha = senha; }
+
+    public void setSalt(byte[] salt) {this.salt = salt; }
+
+    public void setData_criacao(Instant data_criacao) { this.data_criacao = data_criacao; }
 
 }
