@@ -1,30 +1,18 @@
 package Auth;
 
-import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
-import Exceptions.ValidationException;
-import General.JWTUtil;
 import General.ObjectMapper;
-import General.ServiceInterface;
+import Interfaces.ServiceInterface;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class AuthService implements ServiceInterface {
-    @Override
-    public List<RefreshTokenModel> get(Map<String, Object> params) throws SQLException {
-        ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
 
-        List<String> invalidFields = new ArrayList<>();
-        for (String key : params.keySet()) {
-            if (!objectMapper.hasField(key)) {
-                invalidFields.add(key);
-            }
-        }
-        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+    @Override
+    public Object get(Map<String, Object> params) throws SQLException, MappingException {
+        ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
 
         StringBuilder query = new StringBuilder("SELECT * FROM refresh_tokens");
         if (!params.isEmpty()) {
@@ -39,7 +27,7 @@ public class AuthService implements ServiceInterface {
             query.append(";");
         }
 
-        PreparedStatement stmt = conn.prepareStatement(query);
+        PreparedStatement stmt = conn.prepareStatement(query.toString());
 
         if (!params.isEmpty()) {
             int enumerator = 1;
@@ -59,7 +47,7 @@ public class AuthService implements ServiceInterface {
             Map<String, Object> row = new HashMap<>();
 
             for (int i = 1; i <= columnCount; i++) {
-                String columnName = metaData.getColumnName(1);
+                String columnName = metaData.getColumnName(i);
                 Object value = rs.getObject(columnName);
                 row.put(columnName, value);
             }
@@ -69,41 +57,113 @@ public class AuthService implements ServiceInterface {
 
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) {
-            throw new MappingException("Falha ao mapear objeto", errors);
+            throw new MappingException("Erro ao mapear objeto(s)", errors);
         }
 
         return response;
     }
 
     @Override
-    public Optional<Object> post(Map<String, Object> params) throws SQLException, NoSuchAlgorithmException, InvalidKeyException, InvalidParamsException {
-        List<String> invalidFields = new ArrayList<>();
-        for (String key : params.keySet()) {
-            if (!key.equals("id_usuario")) {
-                invalidFields.add(key);
-            }
-        }
-        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+    public Optional<Object> post(Map<String, Object> params) throws MappingException, SQLException {
+        ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
 
         PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO refresh_tokens (token, id_usuario, expires_at)" +
+                "INSERT INTO refresh_tokens (token, expires_at, user_id)" +
                     " VALUES (?, ?, ?)",
-                Statement.RETURN_GENERATED_KEYS);
-        stmt.setString(1, JWTUtil.generateRefreshToken(params.get("id_usuario").toString()));
-        stmt.setInt(2, (int) params.get("id_usuario"));
-        stmt.setTimestamp(3, new Timestamp((System.currentTimeMillis() / 1000) + JWTUtil.REFRESH_TOKEN_EXPIRATION_TIME));
+        Statement.RETURN_GENERATED_KEYS);
+
+        LocalDateTime now = LocalDateTime.now();
+        stmt.setString(1, (String) params.get("token"));
+        stmt.setTimestamp(2, Timestamp.valueOf(now.plusWeeks(1)));
+        stmt.setInt(3, (int) params.get("user_id"));
+
+        stmt.executeUpdate();
+
+        ResultSet generatedKeys = stmt.getGeneratedKeys();
+
+        ResultSetMetaData metaData = stmt.getMetaData();
+        int columnCount = metaData.getColumnCount();
+
+        RefreshTokenModel response = null;
+        if (generatedKeys.next()) {
+            Map<String, Object> row = new HashMap<>();
+
+            for (int i = 1; i <= columnCount; i++) {
+                String columnName = metaData.getColumnName(i);
+                Object value = generatedKeys.getObject(columnName);
+                row.put(columnName, value);
+            }
+
+            response = objectMapper.map(row);
+        }
+
+        List<String> errors = objectMapper.getErrors();
+        if (!errors.isEmpty()) {
+            throw new MappingException("Falha ao mapear objeto(s)", errors);
+        }
+
+        return Optional.ofNullable(response);
+    }
+
+    @Override
+    public Optional<Object> update(Map<String, Object> params) throws SQLException, MappingException {
+        ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
+
+        PreparedStatement stmt = conn.prepareStatement("UPDATE refresh_tokens" +
+                " SET token = ?, expires_at = ?, created_at = ?," +
+                " WHERE user_id = ?;",
+        Statement.RETURN_GENERATED_KEYS);
+
+        LocalDateTime now = LocalDateTime.now();
+        stmt.setString(1, (String) params.get("token"));
+        stmt.setTimestamp(2, Timestamp.valueOf(now.plusWeeks(1)));
+        stmt.setTimestamp(3, Timestamp.valueOf(now));
+        stmt.setInt(4, (int) params.get("user_id"));
 
         stmt.executeUpdate();
 
         ResultSet rs = stmt.getGeneratedKeys();
+
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+
+        RefreshTokenModel response = null;
         if (rs.next()) {
-            return Optional.of(rs.getString("token"));
+            Map<String, Object> row = new HashMap<>();
+
+            for (int i = 1; i <= columnCount; i++) {
+                String columnName = metaData.getColumnName(i);
+                Object value = rs.getObject(columnName);
+                row.put(columnName, value);
+            }
+
+            response = objectMapper.map(row);
         }
 
-        return Optional.empty();
+        List<String> errors = objectMapper.getErrors();
+        if (!errors.isEmpty()) {
+            throw new MappingException("Falha ao mapear objeto(s)", errors);
+        }
+
+        return Optional.ofNullable(response);
     }
 
-    public AuthService(Connection conn) { this.conn = conn; }
+    @Override
+    public void delete(Map<String, Object> params) throws SQLException {
+        PreparedStatement stmt = conn.prepareStatement(
+                "DELETE FROM refresh_tokens WHERE user_id = ?"
+        );
+
+        stmt.setInt(1, (int) params.get("user_id"));
+
+        stmt.executeUpdate();
+    }
+
+
+
+    public AuthService(Connection conn) {
+        this.conn = conn;
+    }
 
     private final Connection conn;
 }

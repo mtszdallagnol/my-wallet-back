@@ -3,18 +3,19 @@ package Users;
 import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
 import Exceptions.ValidationException;
+import General.CryptoUtils;
 import General.ObjectMapper;
-import General.ServiceInterface;
+import Interfaces.ServiceInterface;
 
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.util.*;
 
 public class UserService implements ServiceInterface {
+
+    private static final int SALT_SIZE = 16;
+
     @Override
     public List<UserModel> get(Map<String, Object> params) throws SQLException, MappingException, InvalidParamsException {
         ObjectMapper<UserModel> objectMapper = new ObjectMapper<>(UserModel.class);
@@ -104,10 +105,10 @@ public class UserService implements ServiceInterface {
                     "VALUES (?, ?, ?, ?);"
         );
 
-        byte[] salt = getSalt();
+        byte[] salt = CryptoUtils.generateRandomSecureToken(SALT_SIZE);
         stmt.setString(1, user.getNome());
         stmt.setString(2, user.getEmail());
-        stmt.setString(3, hashPassword(user.getSenha(), salt));
+        stmt.setString(3, CryptoUtils.hashPassword(user.getSenha(), salt));
         stmt.setBytes(4, salt);
 
         stmt.executeUpdate();
@@ -150,29 +151,11 @@ public class UserService implements ServiceInterface {
         stmt.executeUpdate();
     }
 
-    public static String hashPassword(String password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
-        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
 
-        byte[] hash = factory.generateSecret(spec).getEncoded();
-        return Base64.getEncoder().encodeToString(hash);
-    }
-
-    private static byte[] getSalt() {
-        SecureRandom sr = new SecureRandom();
-        byte[] salt = new byte[16];
-
-        sr.nextBytes(salt);
-
-        return salt;
-    }
 
     public UserService(Connection conn) {
         this.conn = conn;
     }
 
     private final Connection conn;
-
-    private static final int ITERATIONS = 65536;
-    private static final int KEY_LENGTH = 256;
 }

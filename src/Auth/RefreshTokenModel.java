@@ -3,6 +3,7 @@ package Auth;
 import Anotations.MaxLength;
 import Anotations.Table;
 
+import java.sql.Time;
 import java.sql.Timestamp;
 
 @Table(TableName = "refresh_tokens")
@@ -12,18 +13,32 @@ public class RefreshTokenModel {
 
     private String token;
 
-    private Integer user_id;
-
-    private Timestamp issued_at;
-
     private Timestamp expires_at;
 
-    private Boolean revoked;
+    private Timestamp created_at;
 
 
-    public Timestamp getExpires_at() { return expires_at; }
+    private Integer user_id;
 
-    public Boolean getRevoked() { return revoked; }
 
+    public String getToken() {
+        return token;
+    }
+
+    public Integer getUser_id() {
+        return user_id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public void setExpires_at(Timestamp expires_at) {
+        this.expires_at = expires_at;
+    }
+
+    public void setCreated_at(Timestamp created_at) {
+        this.created_at = created_at;
+    }
 
 }

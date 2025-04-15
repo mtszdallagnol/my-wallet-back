@@ -33,8 +33,6 @@ public class UserModel {
 
     private Instant data_criacao;
 
-    private LocalDateTime ultimo_login;
-
     private UserDTO.userType perfil;
 
     private UserDTO.userInvestimentStyle estilo_investidor;

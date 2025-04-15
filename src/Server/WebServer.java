@@ -22,7 +22,7 @@ public class WebServer {
     public static DatabaseConnectionPool databaseConnectionPool;
     private static String ADDRESS = null;
     private static int PORT = -1;
-    public static String SECRET = null;
+    public static String JWT_SECRET_KEY = null;
 
     public static final ExecutorService dbThreadPool = new ThreadPoolExecutor(
             Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
@@ -46,7 +46,7 @@ public class WebServer {
 
         ADDRESS = prop.getProperty("ADDRESS");
         PORT = Integer.parseInt(prop.getProperty("PORT"));
-        SECRET = prop.getProperty("SECRET");
+        JWT_SECRET_KEY = prop.getProperty("JWT_SECRET_KEY");
 
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 
