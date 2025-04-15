@@ -59,12 +59,12 @@ public class ObjectMapper<T> {
                 Object convertedValue = null;
                 if (field.isAnnotationPresent(Required.class)) {
 
-                     convertedValue = convertInstanceOfObject(value, field);
                     if (value == null || value.equals("")) {
                         validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
-
-                    } else if (!validateFieldValue(field, convertedValue, conn)) {
                         continue;
+                    } else {
+                        convertedValue = convertInstanceOfObject(value, field);
+                        if (!validateFieldValue(field, convertedValue, conn)) continue;
                     }
                 }
 

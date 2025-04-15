@@ -61,4 +61,6 @@ public class UserModel {
 
     public byte[] getSalt() { return salt; }
 
+    public void setId(int id) { this.id = id; }
+
 }

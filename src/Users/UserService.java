@@ -7,6 +7,7 @@ import General.CryptoUtils;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
 
+import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
@@ -102,19 +103,32 @@ public class UserService implements ServiceInterface<UserModel> {
         }
 
         PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO usuarios (nome, email, senha, salt)" +
-                    "VALUES (?, ?, ?, ?);"
-        );
+                "INSERT INTO usuarios (nome, email, senha, salt, perfil)" +
+                    "VALUES (?, ?, ?, ?, ?);",
+        Statement.RETURN_GENERATED_KEYS);
 
         byte[] salt = CryptoUtils.generateRandomSecureToken(SALT_SIZE);
         stmt.setString(1, user.getNome());
         stmt.setString(2, user.getEmail());
         stmt.setString(3, CryptoUtils.hashPassword(user.getSenha(), salt));
         stmt.setBytes(4, salt);
+        stmt.setString(5, user.getPerfil().toString());
 
         stmt.executeUpdate();
 
-        return Optional.empty();
+        ResultSet generatedKeys = stmt.getGeneratedKeys();
+        ResultSetMetaData metaData = generatedKeys.getMetaData();
+        int columnCount = metaData.getColumnCount();
+
+        if (generatedKeys.next()) {
+            for (int i = 1; i <= columnCount; i++) {
+                String columnName = metaData.getColumnName(i);
+                Object value = generatedKeys.getObject(columnName);
+                user.setId(((BigInteger) value).intValue());
+            }
+        }
+
+        return Optional.of(user);
     }
 
     @Override

@@ -92,7 +92,6 @@ public class AuthService implements ServiceInterface<RefreshTokenModel> {
         stmt.executeUpdate();
 
         ResultSet generatedKeys = stmt.getGeneratedKeys();
-
         ResultSetMetaData metaData = generatedKeys.getMetaData();
         int columnCount = metaData.getColumnCount();
 

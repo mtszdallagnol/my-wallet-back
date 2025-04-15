@@ -12,11 +12,14 @@ import Users.UserService;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class AuthController {
@@ -28,12 +31,18 @@ public class AuthController {
         this.exchange = exchange;
         this.conn = conn;
 
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin != null) {
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", origin);
+            exchange.getResponseHeaders().add("Access-Control-Allow-Credentials", "true");
+        } else exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+
         exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
-        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type,Authorization");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
 
         if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
             exchange.sendResponseHeaders(204, -1);
+
             return;
         }
 
@@ -43,6 +52,7 @@ public class AuthController {
         switch (exchange.getRequestMethod()) {
             case "POST": {
                 String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+
                 if (contentType == null || !contentType.contains("json")) {
                     response.error = true;
                     response.httpStatus = 400;
@@ -56,7 +66,13 @@ public class AuthController {
 
                 JsonParsers.DeserializationResult<Map<String, Object>> result = JsonParsers.deserialize(exchange.getRequestBody());
                 if (!result.isSuccess()) {
-                    exchange.sendResponseHeaders(500, -1);
+                    response.error = true;
+                    response.httpStatus = 500;
+                    response.msg = "Falha ao mapear JSON";
+                    response.data = null;
+                    response.errors = null;
+
+                    WebServer.SendResponse(exchange, response);
                     return;
                 }
                 Map<String, Object> map = result.getValue();
@@ -102,7 +118,6 @@ public class AuthController {
         }
 
         UserService userService = new UserService(conn);
-        AuthService authService = new AuthService(conn);
         CompletableFuture.runAsync(() -> {
             try {
                 List<UserModel> listResponse = userService.get(Map.of("email", login.get("email")));
@@ -123,7 +138,7 @@ public class AuthController {
                         CryptoUtils.hashPassword(login.get("senha").toString(), user.getSalt()))) {
                     response.error = true;
                     response.httpStatus = 400;
-                    response.msg = "Email pu senha inválido(s)";
+                    response.msg = "Email ou senha inválido(s)";
                     response.data= null;
                     response.errors = null;
 
@@ -131,24 +146,16 @@ public class AuthController {
                     return;
                 }
 
-                AuthDTO.JwtToken accessTokenObject = AuthDTO.JwtToken.createJwtToken(AuthDTO.tokenType.ACCESS, user.getId());
-                String accessToken = accessTokenObject.getHeader() + "." + accessTokenObject.getPayload() + "." + accessTokenObject.getSignature();
-                AuthDTO.JwtToken refreshTokenObject = AuthDTO.JwtToken.createJwtToken(AuthDTO.tokenType.REFRESH, user.getId());
-                String refreshToken = refreshTokenObject.getHeader() + "." + refreshTokenObject.getPayload() + "." + refreshTokenObject.getSignature();
-
-                Map<String, Object> params = new HashMap<>();
-                params.put("token", refreshToken);
-                params.put("user_id", user.getId());
-                authService.post(params);
+                Tokens tokens = createTokens(user.getId());
 
                 String cookie = String.format("refresh_token=%s; HttpOnly; Path=/; Max-Age=%d; SameSite=Strict",
-                        refreshToken, 7 * 24 * 60 * 60);
+                        tokens.refreshToken, 7 * 24 * 60 * 60);
                 exchange.getResponseHeaders().add("Set-Cookie", cookie);
 
                 response.error = false;
                 response.httpStatus = 200;
                 response.msg = "Logado com sucesso";
-                response.data.put("access_token", accessToken);
+                response.data.put("access_token", tokens.accessToken);
                 response.errors = null;
 
                 WebServer.SendResponse(exchange, response);
@@ -169,12 +176,11 @@ public class AuthController {
     }
 
     public void SingUp(Map<String, Object> params) {
-        CompletableFuture<Void> responseFuture;
+        CompletableFuture<Optional<UserModel>> responseFuture;
 
         UserService userService = new UserService(conn);
         responseFuture = CompletableFuture.supplyAsync(() -> {
-            try { userService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
-            return null;
+            try { return userService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool);
 
         responseFuture.exceptionally(e -> {
@@ -197,22 +203,54 @@ public class AuthController {
                 response.errors = null;
             }
 
-
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException ex) { throw new RuntimeException(ex); }
 
             return null;
         });
 
-        responseFuture.thenRun(() -> {
+        responseFuture.thenAccept(result -> {
+            Tokens tokens = null;
+            try { if (result.isPresent()) tokens = createTokens(result.get().getId()); else throw new RuntimeException("Erro"); }
+            catch (Exception e) { throw new RuntimeException(e); }
+
+            String cookie = String.format("refresh_token=%s; HttpOnly; Path=/; Max-Age=%d; SameSite=Strict",
+                    tokens.refreshToken, 7 * 24 * 60 * 60);
+            exchange.getResponseHeaders().add("Set-Cookie", cookie);
+
             response.error = false;
             response.msg = "Sucesso ao cadastrar usuário";
             response.httpStatus = 200;
-            response.data = null;
+            response.data.put("access_token", tokens.accessToken);
             response.errors = null;
 
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException e) { throw new RuntimeException(e); }
         });
+    }
+
+    private static class Tokens {
+        public String accessToken;
+        public String refreshToken;
+
+        public Tokens(String accessToken, String refreshToken) {
+            this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
+        }
+    }
+    private Tokens createTokens(int userID) throws NoSuchAlgorithmException, InvalidKeyException, SQLException {
+        AuthService authService = new AuthService(conn);
+
+        AuthDTO.JwtToken accessTokenObject = AuthDTO.JwtToken.createJwtToken(AuthDTO.tokenType.ACCESS, userID);
+        String accessToken = accessTokenObject.getHeader() + "." + accessTokenObject.getPayload() + "." + accessTokenObject.getSignature();
+        AuthDTO.JwtToken refreshTokenObject = AuthDTO.JwtToken.createJwtToken(AuthDTO.tokenType.REFRESH, userID);
+        String refreshToken = refreshTokenObject.getHeader() + "." + refreshTokenObject.getPayload() + "." + refreshTokenObject.getSignature();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("token", refreshToken);
+        params.put("user_id", userID);
+        authService.post(params);
+
+        return new Tokens(accessToken, refreshToken);
     }
 }
