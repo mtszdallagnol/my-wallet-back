@@ -1,17 +1,24 @@
 package Auth;
 
 import Exceptions.MappingException;
+import General.CryptoUtils;
+import General.JsonParsers;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
+import Server.WebServer;
 
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public class AuthService implements ServiceInterface {
+public class AuthService implements ServiceInterface<RefreshTokenModel> {
 
     @Override
-    public Object get(Map<String, Object> params) throws SQLException, MappingException {
+    public List<RefreshTokenModel> get(Map<String, Object> params) throws SQLException, MappingException {
         ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
 
         StringBuilder query = new StringBuilder("SELECT * FROM refresh_tokens");
@@ -64,7 +71,7 @@ public class AuthService implements ServiceInterface {
     }
 
     @Override
-    public Optional<Object> post(Map<String, Object> params) throws MappingException, SQLException {
+    public Optional<RefreshTokenModel> post(Map<String, Object> params) throws MappingException, SQLException {
         ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
 
         PreparedStatement stmt = conn.prepareStatement(
@@ -77,11 +84,16 @@ public class AuthService implements ServiceInterface {
         stmt.setTimestamp(2, Timestamp.valueOf(now.plusWeeks(1)));
         stmt.setInt(3, (int) params.get("user_id"));
 
+        List<RefreshTokenModel> listResponse = get(Map.of("user_id", params.get("user_id")));
+        if (!listResponse.isEmpty()) {
+            delete(Map.of("user_id", params.get("user_id")));
+        }
+
         stmt.executeUpdate();
 
         ResultSet generatedKeys = stmt.getGeneratedKeys();
 
-        ResultSetMetaData metaData = stmt.getMetaData();
+        ResultSetMetaData metaData = generatedKeys.getMetaData();
         int columnCount = metaData.getColumnCount();
 
         RefreshTokenModel response = null;
@@ -106,11 +118,11 @@ public class AuthService implements ServiceInterface {
     }
 
     @Override
-    public Optional<Object> update(Map<String, Object> params) throws SQLException, MappingException {
+    public Optional<RefreshTokenModel> update(Map<String, Object> params) throws SQLException, MappingException {
         ObjectMapper<RefreshTokenModel> objectMapper = new ObjectMapper<>(RefreshTokenModel.class);
 
         PreparedStatement stmt = conn.prepareStatement("UPDATE refresh_tokens" +
-                " SET token = ?, expires_at = ?, created_at = ?," +
+                " SET token = ?, expires_at = ?, created_at = ?" +
                 " WHERE user_id = ?;",
         Statement.RETURN_GENERATED_KEYS);
 
@@ -159,7 +171,41 @@ public class AuthService implements ServiceInterface {
         stmt.executeUpdate();
     }
 
+    public static Object verifyJwtToken(String token) throws NoSuchAlgorithmException, InvalidKeyException, MappingException {
+        String[] parts = token.split("\\.");
 
+        if (parts.length != 3) {
+            return false;
+        }
+
+        String headerEncoded = parts[0];
+        String payloadEncoded = parts[1];
+        String providedSignature = parts[2];
+
+        String dataToSign = headerEncoded + "." + payloadEncoded;
+        String expectedSignature = CryptoUtils.generateSHA256Signature(dataToSign, WebServer.JWT_SECRET_KEY);
+
+        if (!expectedSignature.equals(providedSignature)) {
+            return false;
+        }
+
+        String payload = new String(Base64.getDecoder().decode(payloadEncoded), StandardCharsets.UTF_8);
+        JsonParsers.DeserializationResult<Map<String, Object>> payloadJSONResult = JsonParsers.deserialize(payload);
+
+        if (!payloadJSONResult.isSuccess()) {
+            throw new MappingException("Falha ao mapear objeto(s)" + payloadJSONResult.getError().getMessage(), List.of());
+        }
+
+        Map<String, Object> payloadMap = payloadJSONResult.getValue();
+
+        Instant exp = Instant.ofEpochSecond(((Number) payloadMap.get("exp")).longValue());
+
+        if (Instant.now().isBefore(exp.minusSeconds(2 * 60 * 60))) {
+            return Integer.parseInt((String) payloadMap.get("sub"));
+        }
+
+        return false;
+    }
 
     public AuthService(Connection conn) {
         this.conn = conn;

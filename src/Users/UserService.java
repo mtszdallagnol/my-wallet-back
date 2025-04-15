@@ -12,7 +12,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.util.*;
 
-public class UserService implements ServiceInterface {
+public class UserService implements ServiceInterface<UserModel> {
 
     private static final int SALT_SIZE = 16;
 
@@ -29,6 +29,7 @@ public class UserService implements ServiceInterface {
         if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
 
         StringBuilder query = new StringBuilder("SELECT * FROM usuarios");
+
         if (!params.isEmpty()) {
             query.append(" WHERE ");
 
@@ -78,7 +79,7 @@ public class UserService implements ServiceInterface {
     }
 
     @Override
-    public Optional<Object> post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public Optional<UserModel> post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
         ObjectMapper<UserModel> objectMapper = new ObjectMapper<>(UserModel.class);
 
         List<String> invalidFields = new ArrayList<>();
@@ -117,8 +118,8 @@ public class UserService implements ServiceInterface {
     }
 
     @Override
-    public Optional<Object> update(Map<String, Object> userToUpdate) {
-        return null;
+    public Optional<UserModel> update(Map<String, Object> userToUpdate) {
+        return Optional.empty();
     }
 
     @Override
@@ -151,11 +152,8 @@ public class UserService implements ServiceInterface {
         stmt.executeUpdate();
     }
 
-
-
-    public UserService(Connection conn) {
-        this.conn = conn;
-    }
+    public UserService(Connection conn) { this.conn = conn; }
 
     private final Connection conn;
+
 }

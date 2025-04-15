@@ -1,14 +1,23 @@
 package General;
 
+import Auth.AuthDTO;
+import Auth.AuthService;
+import Auth.RefreshTokenModel;
 import Responses.ControllerResponse;
 import Server.WebServer;
 import Users.UserModel;
+import Users.UserService;
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 abstract public class GeneralController {
@@ -17,10 +26,21 @@ abstract public class GeneralController {
     protected Connection conn;
     protected UserModel user;
 
-    public void handle(HttpExchange exchange) throws IOException, SQLException {
-        // Implementar melhor jeito de lidar quando não tem nenhum conexão disponivel
-        this.conn = WebServer.databaseConnectionPool.getConnection();
+    public void handle(HttpExchange exchange, Connection conn) throws IOException, SQLException, NoSuchAlgorithmException, InvalidKeyException {
         this.exchange = exchange;
+        this.conn = conn;
+
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type,Authorization");
+
+        if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+            exchange.sendResponseHeaders(204, -1);
+
+            return;
+        }
+
+        verifyAuthHeaders(exchange.getRequestHeaders());
 
         String requestType = exchange.getRequestMethod();
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
@@ -76,6 +96,106 @@ abstract public class GeneralController {
 
             WebServer.SendResponse(exchange, response);
         }
+    }
+
+    private void verifyAuthHeaders(Headers headers) throws IOException,
+            NoSuchAlgorithmException, InvalidKeyException, SQLException {
+        if (!headers.containsKey("Authorization")) {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Access Token faltando";
+            response.data = null;
+            response.errors = null;
+
+            WebServer.SendResponse(exchange, response);
+            return;
+        }
+
+        String accessToken = headers.getFirst("Authorization");
+        if (!accessToken.contains("Bearer")) {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Modelo de autenticação não suportado";
+            response.data = null;
+            response.errors = null;
+
+            WebServer.SendResponse(exchange, response);
+            return;
+        }
+        accessToken = accessToken.substring(7);
+
+        Object accessTokenValidation = AuthService.verifyJwtToken(accessToken);
+        UserService userService = new UserService(conn);
+        if (!Boolean.FALSE.equals(accessTokenValidation)) {
+            int userID = (Integer) accessTokenValidation;
+            user = userService.get(Map.of("id", userID)).getFirst();
+            return;
+        }
+
+        if (!headers.containsKey("Cookie")) {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Access Token inválido cookies faltando";
+            response.data = null;
+            response.errors = null;
+
+            WebServer.SendResponse(exchange, response);
+            return;
+        }
+
+        String refresh_token = null;
+        List<String> cookies = headers.get("Cookie");
+        for (String cookieHeader : cookies) {
+            String[] individualCookies = cookieHeader.split(";");
+            for (String cookie : individualCookies) {
+                String[] parts = cookie.trim().split("=", 2);
+                if (parts.length == 2 && parts[0].equals("refresh_token")) refresh_token = parts[1];
+            }
+        }
+        if (refresh_token == null)  {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Access Token inválido e Refresh Token faltando";
+            response.data = null;
+            response.errors = null;
+
+            WebServer.SendResponse(exchange, response);
+            return;
+        }
+
+        AuthService authService = new AuthService(conn);
+        List<RefreshTokenModel> resultList = authService.get(Map.of("token", refresh_token));
+        RefreshTokenModel refreshTokenDatabase = resultList.isEmpty() ? null : resultList.getFirst();
+        if (refreshTokenDatabase == null) {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Access Token and Refresh Token inválidos";
+            response.data = null;
+            response.errors = null;
+
+            WebServer.SendResponse(exchange, response);
+            return;
+        }
+
+        if (!Instant.now().isBefore(Instant.ofEpochMilli(refreshTokenDatabase.getExpires_at().getTime()))) {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Access Token expirado, por favor logue novamente";
+            response.data = null;
+            response.errors = null;
+
+            Map<String, Object> params = Map.of("token", refreshTokenDatabase.getToken(),
+                    "user_id", refreshTokenDatabase.getUser_id());
+            authService.delete(params);
+
+            WebServer.SendResponse(exchange, response);
+            return;
+        }
+
+        AuthDTO.JwtToken accessTokenObject = AuthDTO.JwtToken.createJwtToken(AuthDTO.tokenType.ACCESS,
+                refreshTokenDatabase.getUser_id());
+        String accessTokenString = accessTokenObject.getHeader() + "." + accessTokenObject.getPayload() + "." + accessTokenObject.getSignature();
+        response.data.put("access_token", accessTokenString);
     }
 
     private static Map<String, Object> getParamsFromQuery(String query) {

@@ -28,11 +28,11 @@ public class UserModel {
     @MaxLength(255)
     private String senha;
 
-    @MaxLength(16)
     private byte[] salt;
 
     private Instant data_criacao;
 
+    @Required
     private UserDTO.userType perfil;
 
     private UserDTO.userInvestimentStyle estilo_investidor;
@@ -56,6 +56,8 @@ public class UserModel {
     public String getSenha() {
         return senha;
     }
+
+    public UserDTO.userType getPerfil() { return perfil; }
 
     public byte[] getSalt() { return salt; }
 

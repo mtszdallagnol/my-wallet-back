@@ -29,6 +29,10 @@ public class RefreshTokenModel {
         return user_id;
     }
 
+    public Timestamp getExpires_at() {
+        return expires_at;
+    }
+
     public void setId(Integer id) {
         this.id = id;
     }

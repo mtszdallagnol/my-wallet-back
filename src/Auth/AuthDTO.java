@@ -15,14 +15,14 @@ import java.util.List;
 import java.util.Map;
 
 public class AuthDTO {
-    private static final long ACCESS_TOKEN_EXPIRY = 2 * 60 * 60;
+    private static final long ACCESS_TOKEN_EXPIRY = 5 * 60;
     private static final long REFRESH_TOKEN_EXPIRY = 1 * 7 * 24 * 60 * 60;
 
      public enum tokenType {
         ACCESS, REFRESH
     }
 
-    private static class JwtToken {
+    public static class JwtToken {
         private final String header;
         private final String payload;
         private final String signature;
@@ -69,40 +69,16 @@ public class AuthDTO {
             return new JwtToken(encodedHeader, encodedPayload, signature);
         }
 
-        public static Object verifyJwtToken(String token) throws NoSuchAlgorithmException, InvalidKeyException, MappingException {
-            String[] parts = token.split("\\.");
+        public String getHeader() {
+            return this.header;
+        }
 
-            if (parts.length != 3) {
-                return false;
-            }
+        public String getPayload() {
+            return this.payload;
+        }
 
-            String headerEncoded = parts[0];
-            String payloadEncoded = parts[1];
-            String providedSignature = parts[2];
-
-            String dataToSign = headerEncoded + "." + payloadEncoded;
-            String expectedSignature = CryptoUtils.generateSHA256Signature(dataToSign, WebServer.JWT_SECRET_KEY);
-
-            if (!expectedSignature.equals(providedSignature)) {
-                return false;
-            }
-
-            String payload = new String(Base64.getDecoder().decode(payloadEncoded), StandardCharsets.UTF_8);
-            JsonParsers.DeserializationResult<Map<String, Object>> payloadJSONResult = JsonParsers.deserialize(payload);
-
-            if (!payloadJSONResult.isSuccess()) {
-                throw new MappingException("Falha ao mapear objeto(s)" + payloadJSONResult.getError().getMessage(), List.of());
-            }
-
-            Map<String, Object> payloadMap = payloadJSONResult.getValue();
-
-            Instant exp = Instant.ofEpochSecond(((Number) payloadMap.get("exp")).longValue());
-
-            if (Instant.now().isBefore(exp)) {
-                return payloadMap.get("sub");
-            }
-
-            return false;
+        public String getSignature() {
+            return this.signature;
         }
     }
 }

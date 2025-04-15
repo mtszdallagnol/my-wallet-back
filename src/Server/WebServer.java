@@ -1,5 +1,6 @@
 package Server;
 
+import Auth.AuthController;
 import Responses.ControllerResponse;
 import Users.UserService;
 import com.sun.net.httpserver.HttpExchange;
@@ -8,6 +9,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.*;
@@ -50,8 +52,21 @@ public class WebServer {
 
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 
-        _Server.createContext("/users", exchange -> { try { new UserController().handle(exchange); }
-            catch (Exception e) { throw new RuntimeException(e); } });
+        _Server.createContext("/users", exchange -> {
+            Connection conn = null;
+            try {
+                conn = databaseConnectionPool.getConnection();
+                new UserController().handle(exchange, conn);}
+            catch (Exception e) { throw new RuntimeException(e); }
+            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); } });
+        _Server.createContext("/auth", exchange -> {
+            Connection conn = null;
+            try {
+                conn = databaseConnectionPool.getConnection();
+                new AuthController().handle(exchange, conn); }
+            catch (Exception e) { throw new RuntimeException(e); }
+            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
+        });
 
         ThreadPoolExecutor httpThreadPool = new ThreadPoolExecutor(
                 Runtime.getRuntime().availableProcessors(),
