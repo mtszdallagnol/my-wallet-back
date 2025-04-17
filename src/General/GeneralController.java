@@ -201,6 +201,8 @@ abstract public class GeneralController {
                 refreshTokenDatabase.getUser_id());
         String accessTokenString = accessTokenObject.getHeader() + "." + accessTokenObject.getPayload() + "." + accessTokenObject.getSignature();
         response.data.put("access_token", accessTokenString);
+
+        user = userService.get(Map.of("id", refreshTokenDatabase.getUser_id())).get(0);
     }
 
     private static Map<String, Object> getParamsFromQuery(String query) {

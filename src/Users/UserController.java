@@ -14,6 +14,19 @@ public class UserController extends GeneralController {
 
     @Override
     protected void handleGET(Map<String, Object> params) {
+
+        if (user.getPerfil() != UserDTO.userType.ADMIN){
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Operação Não autorizada";
+            response.data = null;
+            response.errors = null;
+
+            try { WebServer.SendResponse(exchange,response); }
+            catch (IOException e) { throw new RuntimeException(e); }
+            return;
+        }
+
         CompletableFuture<Object> responseFuture;
 
         UserService userService = new UserService(conn);
@@ -74,7 +87,7 @@ public class UserController extends GeneralController {
         if (user.getPerfil() != UserDTO.userType.ADMIN) {
             response.error = true;
             response.httpStatus = 401;
-            response.msg = "Método não disponível";
+            response.msg = "Operação Não autorizada";
             response.data = null;
             response.errors = null;
 
