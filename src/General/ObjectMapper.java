@@ -56,17 +56,16 @@ public class ObjectMapper<T> {
                 Field field = entry.getValue();
                 Object value = row.get(columnName);
 
-                Object convertedValue = null;
                 if (field.isAnnotationPresent(Required.class)) {
 
                     if (value == null || value.equals("")) {
                         validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
                         continue;
-                    } else {
-                        convertedValue = convertInstanceOfObject(value, field);
-                        if (!validateFieldValue(field, convertedValue, conn)) continue;
                     }
                 }
+
+                Object convertedValue = convertInstanceOfObject(value, field);
+                if (!validateFieldValue(field, convertedValue, conn)) continue;
 
                 if (convertedValue == null) {
                     field.set(dto, null);

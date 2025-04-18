@@ -5,6 +5,7 @@ import Responses.ControllerResponse;
 import Users.UserService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import Wallets.WalletController;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -64,6 +65,15 @@ public class WebServer {
             try {
                 conn = databaseConnectionPool.getConnection();
                 new AuthController().handle(exchange, conn); }
+            catch (Exception e) { throw new RuntimeException(e); }
+            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
+        });
+        _Server.createContext("/wallets", exchange -> {
+            Connection conn = null;
+            try {
+                conn = databaseConnectionPool.getConnection();
+                new WalletController().handle(exchange, conn);
+            }
             catch (Exception e) { throw new RuntimeException(e); }
             finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
         });

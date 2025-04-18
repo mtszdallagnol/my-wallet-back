@@ -32,7 +32,7 @@ public class UserController extends GeneralController {
         UserService userService = new UserService(conn);
         responseFuture = CompletableFuture.supplyAsync(() -> {
             try { return userService.get(params); } catch (Exception e) { throw new RuntimeException(e); }
-        });
+        }, WebServer.dbThreadPool);
 
         responseFuture.exceptionally(e -> {
             response.error = true;
