@@ -170,42 +170,6 @@ public class AuthService implements ServiceInterface<RefreshTokenModel> {
         stmt.executeUpdate();
     }
 
-    public static Object verifyJwtToken(String token) throws NoSuchAlgorithmException, InvalidKeyException, MappingException {
-        String[] parts = token.split("\\.");
-
-        if (parts.length != 3) {
-            return false;
-        }
-
-        String headerEncoded = parts[0];
-        String payloadEncoded = parts[1];
-        String providedSignature = parts[2];
-
-        String dataToSign = headerEncoded + "." + payloadEncoded;
-        String expectedSignature = CryptoUtils.generateSHA256Signature(dataToSign, WebServer.JWT_SECRET_KEY);
-
-        if (!expectedSignature.equals(providedSignature)) {
-            return false;
-        }
-
-        String payload = new String(Base64.getDecoder().decode(payloadEncoded), StandardCharsets.UTF_8);
-        JsonParsers.DeserializationResult<Map<String, Object>> payloadJSONResult = JsonParsers.deserialize(payload);
-
-        if (!payloadJSONResult.isSuccess()) {
-            throw new MappingException("Falha ao mapear objeto(s)" + payloadJSONResult.getError().getMessage(), List.of());
-        }
-
-        Map<String, Object> payloadMap = payloadJSONResult.getValue();
-
-        Instant exp = Instant.ofEpochSecond(((Number) payloadMap.get("exp")).longValue());
-
-        if (Instant.now().isBefore(exp)) {
-            return Integer.parseInt((String) payloadMap.get("sub"));
-        }
-
-        return false;
-    }
-
     public AuthService(Connection conn) {
         this.conn = conn;
     }

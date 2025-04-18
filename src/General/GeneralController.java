@@ -129,18 +129,29 @@ abstract public class GeneralController {
         }
         accessToken = accessToken.substring(7);
 
-        Object accessTokenValidation = AuthService.verifyJwtToken(accessToken);
+        AuthDTO.JwtTokenValidationResponse accessTokenValidation = AuthDTO.JwtToken.verifyJwtToken(accessToken);
         UserService userService = new UserService(conn);
-        if (!Boolean.FALSE.equals(accessTokenValidation)) {
-            int userID = (Integer) accessTokenValidation;
+
+        if (accessTokenValidation.getValidationResponseType().equals(AuthDTO.tokenVerificationResponseType.VALID)) {
+            int userID = accessTokenValidation.getUserID();
             user = userService.get(Map.of("id", userID)).get(0);
+
+            return;
+        } else if (accessTokenValidation.getValidationResponseType().equals(AuthDTO.tokenVerificationResponseType.INVALID)) {
+            response.error = true;
+            response.httpStatus = 401;
+            response.msg = "Access Token inválido";
+            response.data = null;
+            response.errors = null;
+
+            WebServer.SendResponse(exchange, response);
             return;
         }
 
         if (!headers.containsKey("Cookie")) {
             response.error = true;
             response.httpStatus = 401;
-            response.msg = "Access Token inválido cookies faltando";
+            response.msg = "Access Token expirado e cookies faltando";
             response.data = null;
             response.errors = null;
 
@@ -160,7 +171,7 @@ abstract public class GeneralController {
         if (refresh_token == null)  {
             response.error = true;
             response.httpStatus = 401;
-            response.msg = "Access Token inválido e Refresh Token faltando";
+            response.msg = "Access Token expirado e Refresh Token faltando";
             response.data = null;
             response.errors = null;
 
@@ -174,7 +185,7 @@ abstract public class GeneralController {
         if (refreshTokenDatabase == null) {
             response.error = true;
             response.httpStatus = 401;
-            response.msg = "Access Token and Refresh Token inválidos";
+            response.msg = "Access Token expirado e refresh token inválido";
             response.data = null;
             response.errors = null;
 
