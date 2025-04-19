@@ -118,24 +118,26 @@ public class AuthController {
         }
 
         UserService userService = new UserService(conn);
-        CompletableFuture.runAsync(() -> {
-            try {
-                List<UserModel> listResponse = userService.get(Map.of("email", login.get("email")));
-                UserModel user = listResponse.isEmpty() ? null : listResponse.get(0);
+        CompletableFuture.supplyAsync(() -> {
+            try { List<UserModel> listResponse = userService.get(Map.of("email", login.get("email")));
+                  return listResponse.isEmpty() ? null : listResponse.get(0); }
+            catch (SQLException e) { throw new RuntimeException(e); }
+        }, WebServer.dbThreadPool)
+        .thenAcceptAsync(fetchedUser -> {
+            if (fetchedUser == null) {
+                response.error = true;
+                response.httpStatus = 400;
+                response.msg = "Email ou senha inválido(s)";
+                response.data = null;
+                response.errors = null;
 
-                if (user == null) {
-                    response.error = true;
-                    response.httpStatus = 400;
-                    response.msg = "Email ou senha inválido(s)";
-                    response.data = null;
-                    response.errors = null;
+                try { WebServer.SendResponse(exchange, response); }
+                catch (IOException e) { throw new RuntimeException(e); }
+                return;
+            }
 
-                    WebServer.SendResponse(exchange, response);
-                    return;
-                }
-
-                if (!user.getSenha().equals(
-                        CryptoUtils.hashPassword(login.get("senha").toString(), user.getSalt()))) {
+            try { if (!fetchedUser.getSenha().equals(
+                        CryptoUtils.hashPassword(login.get("senha").toString(), fetchedUser.getSalt()))) {
                     response.error = true;
                     response.httpStatus = 400;
                     response.msg = "Email ou senha inválido(s)";
@@ -143,10 +145,11 @@ public class AuthController {
                     response.errors = null;
 
                     WebServer.SendResponse(exchange, response);
-                    return;
-                }
+                    return; } }
+            catch (Exception e) { throw new RuntimeException(e); }
 
-                Tokens tokens = createTokens(user.getId());
+            try {
+                Tokens tokens = createTokens(fetchedUser.getId());
 
                 String cookie = String.format("refresh_token=%s; HttpOnly; Path=/; Max-Age=%d; SameSite=Strict",
                         tokens.refreshToken, 7 * 24 * 60 * 60);
@@ -156,26 +159,19 @@ public class AuthController {
                 response.httpStatus = 200;
                 response.msg = "Logado com sucesso";
                 response.data.put("access_token", tokens.accessToken);
+            } catch (Exception e) { throw new RuntimeException(e); }
 
-                user.setId(null);
-                user.setSenha(null);
-                user.setSalt(null);
-                user.setData_criacao(null);
+            fetchedUser.setId(null);
+            fetchedUser.setSenha(null);
+            fetchedUser.setSalt(null);
+            fetchedUser.setData_criacao(null);
 
-                response.data.put("usuario", user);
-                response.errors = null;
+            response.data.put("usuario", fetchedUser);
+            response.errors = null;
 
-                WebServer.SendResponse(exchange, response);
-            } catch (Exception e) {
-                response.error = true;
-                response.httpStatus = 500;
-                response.msg = e.getMessage();
-                response.data = null;
-                response.errors = null;
-
-                try { WebServer.SendResponse(exchange, response); } catch (IOException ex) { throw new RuntimeException(e); };
-            }
-        }, WebServer.dbThreadPool);
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException e) { throw new RuntimeException(e); }
+        });
     }
 
     private void Logout() throws IOException {
@@ -183,14 +179,11 @@ public class AuthController {
     }
 
     public void SingUp(Map<String, Object> params) {
-        CompletableFuture<Optional<UserModel>> responseFuture;
-
         UserService userService = new UserService(conn);
-        responseFuture = CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.supplyAsync(() -> {
             try { return userService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
-        }, WebServer.dbThreadPool);
-
-        responseFuture.exceptionally(e -> {
+        }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
             response.error = true;
             while (e.getCause() != null) {
                 e = e.getCause(); }
@@ -213,10 +206,9 @@ public class AuthController {
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException ex) { throw new RuntimeException(ex); }
 
-            return null;
-        });
-
-        responseFuture.thenAccept(result -> {
+            return Optional.empty();
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenAccept(result -> {
             Tokens tokens = null;
             try { if (result.isPresent()) tokens = createTokens(result.get().getId()); else throw new RuntimeException("Erro"); }
             catch (Exception e) { throw new RuntimeException(e); }

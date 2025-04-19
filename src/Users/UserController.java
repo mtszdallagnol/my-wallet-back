@@ -15,7 +15,7 @@ public class UserController extends GeneralController {
     @Override
     protected void handleGET(Map<String, Object> params) {
 
-        if (user.getPerfil() != UserDTO.userType.ADMIN){
+        if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
             response.error = true;
             response.httpStatus = 401;
             response.msg = "Operação Não autorizada";
@@ -27,14 +27,11 @@ public class UserController extends GeneralController {
             return;
         }
 
-        CompletableFuture<Object> responseFuture;
-
         UserService userService = new UserService(conn);
-        responseFuture = CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.supplyAsync(() -> {
             try { return userService.get(params); } catch (Exception e) { throw new RuntimeException(e); }
-        }, WebServer.dbThreadPool);
-
-        responseFuture.exceptionally(e -> {
+        }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
             response.error = true;
             while (e.getCause() != null) {
                 e = e.getCause(); }
@@ -58,9 +55,8 @@ public class UserController extends GeneralController {
             catch (IOException ex) { throw new RuntimeException(ex); }
 
             return null;
-        });
-
-        responseFuture.thenAccept(result -> {
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenAcceptAsync(result -> {
             response.error = false;
             response.msg = "Sucesso ao recuperar usuário(s)";
             response.httpStatus = 200;
@@ -68,7 +64,7 @@ public class UserController extends GeneralController {
 
             try { WebServer.SendResponse(exchange, response); }
             catch (Exception e) { throw new RuntimeException(e); }
-        });
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 
 
@@ -97,15 +93,13 @@ public class UserController extends GeneralController {
             return;
         }
 
-        CompletableFuture<Void> responseFuture;
 
         UserService userService = new UserService(conn);
-        responseFuture = CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.supplyAsync(() -> {
             try { userService.delete(params); } catch (Exception e) { throw new RuntimeException(e); }
             return null;
-        }, WebServer.dbThreadPool);
-
-        responseFuture.exceptionally(e -> {
+        }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
             response.error = true;
             while (e.getCause() != null) {
                 e = e.getCause(); }
@@ -125,9 +119,8 @@ public class UserController extends GeneralController {
             catch (IOException ex) { throw new RuntimeException(ex); }
 
             return null;
-        });
-
-        responseFuture.thenRun(() -> {
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenRunAsync(() -> {
             response.error = false;
             response.msg = "Sucesso ao deletar usuário";
             response.httpStatus = 200;
@@ -136,6 +129,6 @@ public class UserController extends GeneralController {
 
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException e) { throw new RuntimeException(e); }
-        });
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 }

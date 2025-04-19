@@ -53,6 +53,11 @@ public class WebServer {
         JWT_ACCESS_KEY = prop.getProperty("JWT_ACCESS_KEY");
         JWT_REFRESH_KEY = prop.getProperty("JWT_REFRESH_KEY");
 
+        if (ADDRESS == null || PORT == -1 || JWT_ACCESS_KEY == null || JWT_REFRESH_KEY == null ) {
+            logger.severe("Arquivo ENV inválido");
+            System.exit(1);
+        }
+
         _Server = HttpServer.create(new InetSocketAddress(ADDRESS, PORT), 0);
 
         _Server.createContext("/users", exchange -> {
