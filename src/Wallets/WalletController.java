@@ -20,57 +20,41 @@ public class WalletController extends GeneralController {
         }
 
         WalletService walletService = new WalletService(conn);
+        CompletableFuture.supplyAsync(() -> {
+                    try { return walletService.get(params); } catch (Exception e) { throw new RuntimeException(e); }
+                }, WebServer.dbThreadPool)
+                .exceptionallyAsync(e -> {
+                    response.error = true;
+                    while (e.getCause() != null) {
+                        e = e.getCause(); }
+                    response.msg = e.getMessage();
+                    response.data = null;
+                    if (e instanceof MappingException) {
+                        response.httpStatus = 400;
+                        response.errors = ((MappingException) e).getErrors();
+                    } else if (e instanceof InvalidParamsException) {
+                        response.httpStatus = 400;
+                        response.errors = ((InvalidParamsException) e).getErrors();
+                    }
+                    else {
+                        response.httpStatus = 500;
+                        response.errors = null;
+                    }
 
-        CompletableFuture<Object> responseFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                return walletService.get(params);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, WebServer.dbThreadPool);
+                    try { WebServer.SendResponse(exchange, response); }
+                    catch (IOException ex) { throw new RuntimeException(ex); }
 
-        responseFuture.thenAccept(result -> {
-            response.error = false;
-            response.msg = "Operação realizada com sucesso";
-            response.data.put("data", result);
-            response.httpStatus = 200;
-            response.errors = null;
+                    return null;
+                }, exchange.getHttpContext().getServer().getExecutor())
+                .thenAcceptAsync(result -> {
+                    response.error = false;
+                    response.msg = "Sucesso ao recuperar carteira(s)";
+                    response.httpStatus = 200;
+                    response.data.put("data", result);
 
-            try {
-                WebServer.SendResponse(exchange, response);
-            } catch (IOException e) {
-                throw new RuntimeException("Erro ao enviar resposta", e);
-            }
-        });
-
-        responseFuture.exceptionally(e -> {
-            response.error = true;
-            while (e.getCause() != null) {
-                e = e.getCause();
-            }
-
-            response.msg = e.getMessage();
-            response.data = null;
-
-            if (e instanceof MappingException) {
-                response.httpStatus = 400;
-                response.errors = ((MappingException) e).getErrors();
-            } else if (e instanceof InvalidParamsException) {
-                response.httpStatus = 400;
-                response.errors = ((InvalidParamsException) e).getErrors();
-            } else {
-                response.httpStatus = 500;
-                response.errors = null;
-            }
-
-            try {
-                WebServer.SendResponse(exchange, response);
-            } catch (IOException ex) {
-                throw new RuntimeException("Erro ao enviar resposta de erro", ex);
-            }
-
-            return null;
-        });
+                    try { WebServer.SendResponse(exchange, response); }
+                    catch (Exception e) { throw new RuntimeException(e); }
+                }, exchange.getHttpContext().getServer().getExecutor());
     }
 
     @Override
@@ -81,57 +65,43 @@ public class WalletController extends GeneralController {
         }
 
         WalletService walletService = new WalletService(conn);
+        CompletableFuture.supplyAsync(() -> {
+                    try { return walletService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
+                }, WebServer.dbThreadPool)
+                .exceptionallyAsync(e -> {
+                    response.error = true;
+                    while (e.getCause() != null) {
+                        e = e.getCause(); }
+                    response.msg = e.getMessage();
 
-        CompletableFuture<Object> responseFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                return walletService.post(params);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, WebServer.dbThreadPool);
+                    response.data = null;
 
-        responseFuture.thenAccept(result -> {
-            response.error = false;
-            response.msg = "Carteira criada com sucesso";
-            response.data.put("data", result);
-            response.httpStatus = 201;
-            response.errors = null;
+                    if (e instanceof MappingException) {
+                        response.httpStatus = 400;
+                        response.errors = ((MappingException) e).getErrors();
+                    } else if (e instanceof InvalidParamsException) {
+                        response.httpStatus = 400;
+                        response.errors = ((InvalidParamsException) e).getErrors();
+                    }
+                    else {
+                        response.httpStatus = 500;
+                        response.errors = null;
+                    }
 
-            try {
-                WebServer.SendResponse(exchange, response);
-            } catch (IOException e) {
-                throw new RuntimeException("Erro ao enviar resposta", e);
-            }
-        });
+                    try { WebServer.SendResponse(exchange, response); }
+                    catch (IOException ex) { throw new RuntimeException(ex); }
 
-        responseFuture.exceptionally(e -> {
-            response.error = true;
-            while (e.getCause() != null) {
-                e = e.getCause();
-            }
+                    return null;
+                }, exchange.getHttpContext().getServer().getExecutor())
+                .thenAcceptAsync(result -> {
+                    response.error = false;
+                    response.msg = "Sucesso ao criar carteira";
+                    response.httpStatus = 201;
+                    response.data.put("data", result);
 
-            response.msg = e.getMessage();
-            response.data = null;
-
-            if (e instanceof MappingException) {
-                response.httpStatus = 400;
-                response.errors = ((MappingException) e).getErrors();
-            } else if (e instanceof InvalidParamsException) {
-                response.httpStatus = 400;
-                response.errors = ((InvalidParamsException) e).getErrors();
-            } else {
-                response.httpStatus = 500;
-                response.errors = null;
-            }
-
-            try {
-                WebServer.SendResponse(exchange, response);
-            } catch (IOException ex) {
-                throw new RuntimeException("Erro ao enviar resposta de erro", ex);
-            }
-
-            return null;
-        });
+                    try { WebServer.SendResponse(exchange, response); }
+                    catch (Exception e) { throw new RuntimeException(e); }
+                }, exchange.getHttpContext().getServer().getExecutor());
     }
 
     @Override
