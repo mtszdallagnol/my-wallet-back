@@ -74,8 +74,8 @@ public class UserController extends GeneralController {
     }
 
     @Override
-    protected void handlePUT() {
-
+    protected void handlePUT(Map<String, Object> params) {
+        
     }
 
     @Override

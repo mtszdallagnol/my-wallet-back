@@ -6,6 +6,7 @@ import Exceptions.ValidationException;
 import General.CryptoUtils;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
+import com.mysql.cj.x.protobuf.MysqlxPrepare;
 
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
@@ -127,7 +128,7 @@ public class UserService implements ServiceInterface<UserModel> {
     }
 
     @Override
-    public Optional<UserModel> update(Map<String, Object> userToUpdate) {
+    public Optional<UserModel> update(Map<String, Object> userToUpdate) throws SQLException {
         return Optional.empty();
     }
 

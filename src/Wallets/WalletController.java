@@ -110,7 +110,7 @@ public class WalletController extends GeneralController {
     }
 
     @Override
-    protected void handlePUT() {
+    protected void handlePUT(Map<String, Object> params) {
     }
 
     @Override

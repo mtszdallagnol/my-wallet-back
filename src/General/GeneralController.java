@@ -258,7 +258,36 @@ abstract public class GeneralController {
 
             handlePOST(dataMap);
         } else if (requestType.equalsIgnoreCase("PUT")) {
-            System.out.println("PUT");
+            if (contentType == null || !contentType.contains("json")) {
+                response.error = true;
+                response.httpStatus = 400;
+                response.msg = "Tipo de payload não suportado atualmente";
+                response.data = null;
+                response.errors = null;
+
+                try { WebServer.SendResponse(exchange, response); }
+                catch (IOException e) { throw new RuntimeException(e); }
+                return;
+            }
+
+            JsonParsers.DeserializationResult<Map<String, Object>> result = JsonParsers.deserialize(exchange.getRequestBody());
+
+            if (!result.isSuccess()) {
+                response.error = true;
+                response.httpStatus = 500;
+                response.msg = "Erro ao deserializar JSON: " + result.getError().getMessage();
+                response.data = null;
+                response.errors = null;
+
+                try { WebServer.SendResponse(exchange, response); }
+                catch (IOException e) { throw new RuntimeException(e); }
+                return;
+            }
+
+            Map<String, Object> dataMap = result.getValue();
+
+            handlePUT(dataMap);
+
         } else if (requestType.equalsIgnoreCase("DELETE")) {
             handleDELETE(params);
         } else {
@@ -288,7 +317,7 @@ abstract public class GeneralController {
 
     abstract protected void handlePOST(Map<String, Object> params);
 
-    abstract protected void handlePUT();
+    abstract protected void handlePUT(Map<String, Object> params);
 
     abstract protected void handleDELETE(Map<String, Object> params);
 }
