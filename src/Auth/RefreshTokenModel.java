@@ -17,17 +17,13 @@ public class RefreshTokenModel {
 
     private Timestamp created_at;
 
-
-    private Integer user_id;
-
+    private Integer id_usuario;
 
     public String getToken() {
         return token;
     }
 
-    public Integer getUser_id() {
-        return user_id;
-    }
+    public Integer getUser_id() { return id_usuario; }
 
     public Timestamp getExpires_at() {
         return expires_at;

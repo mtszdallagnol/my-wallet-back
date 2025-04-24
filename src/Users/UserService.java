@@ -117,15 +117,10 @@ public class UserService implements ServiceInterface<UserModel> {
         stmt.executeUpdate();
 
         ResultSet generatedKeys = stmt.getGeneratedKeys();
-        ResultSetMetaData metaData = generatedKeys.getMetaData();
-        int columnCount = metaData.getColumnCount();
 
         if (generatedKeys.next()) {
-            for (int i = 1; i <= columnCount; i++) {
-                String columnName = metaData.getColumnName(i);
-                Object value = generatedKeys.getObject(columnName);
-                user.setId(((BigInteger) value).intValue());
-            }
+            Object value = generatedKeys.getObject("GENERATED_KEY");
+            user.setId(((BigInteger) value).intValue());
         }
 
         return Optional.of(user);

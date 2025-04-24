@@ -3,7 +3,7 @@
     <output-path>$PROJECT_DIR$/out/artifacts/mywallet_jar</output-path>
     <root id="archive" name="mywallet.jar">
       <element id="module-output" name="mywallet" />
-      <element id="extracted-dir" path="$PROJECT_DIR$/../../mysql-connector-j-9.2.0/mysql-connector-j-9.2.0/mysql-connector-j-9.2.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/mysql-connector-j-9.2.0/mysql-connector-j-9.2.0/mysql-connector-j-9.2.0.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

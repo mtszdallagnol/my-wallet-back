@@ -171,7 +171,7 @@ public class AuthController {
 
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException e) { throw new RuntimeException(e); }
-        });
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 
     private void Logout() throws IOException {
@@ -181,7 +181,7 @@ public class AuthController {
     public void SingUp(Map<String, Object> params) {
         UserService userService = new UserService(conn);
         CompletableFuture.supplyAsync(() -> {
-            try { return userService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
+            try {  return userService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {
             response.error = true;
@@ -256,7 +256,7 @@ public class AuthController {
 
         Map<String, Object> params = new HashMap<>();
         params.put("token", refreshToken);
-        params.put("user_id", userID);
+        params.put("id_usuario", userID);
         authService.post(params);
 
         return new Tokens(accessToken, refreshToken);
