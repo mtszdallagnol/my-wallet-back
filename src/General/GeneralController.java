@@ -72,11 +72,26 @@ abstract public class GeneralController {
         if (accessTokenValidation.getValidationResponseType().equals(AuthDTO.tokenVerificationResponseType.VALID)) {
             return CompletableFuture.supplyAsync(() -> {
                 int userID = accessTokenValidation.getUserID();
-                try { user = userService.get(Map.of("id", userID)).get(0); }
+                try { List<UserModel> getResponse = userService.get(Map.of("id", userID));
+                      return getResponse.isEmpty() ? null : getResponse.get(0); }
                 catch (SQLException e) { throw new RuntimeException(e); }
+            }, WebServer.dbThreadPool)
+            .thenComposeAsync(fetchedUser -> {
+                if (fetchedUser == null) {
+                    response.error = true;
+                    response.httpStatus = 400;
+                    response.msg = "Usuário inválido presente no token";
+                    response.data = null;
+                    response.errors = null;
 
-                return true;
-            }, WebServer.dbThreadPool);
+                    try { WebServer.SendResponse(exchange, response); }
+                    catch (IOException e) { throw new RuntimeException(e); }
+                    return CompletableFuture.completedFuture(false);
+                }
+
+                user = fetchedUser;
+                return CompletableFuture.completedFuture(true);
+            }, exchange.getHttpContext().getServer().getExecutor());
         } else if (accessTokenValidation.getValidationResponseType().equals(AuthDTO.tokenVerificationResponseType.INVALID)) {
             response.error = true;
             response.httpStatus = 401;

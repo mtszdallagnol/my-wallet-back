@@ -65,12 +65,12 @@ public class ObjectMapper<T> {
                 }
 
                 Object convertedValue = convertInstanceOfObject(value, field);
-                if (!validateFieldValue(field, convertedValue, conn)) continue;
-
                 if (convertedValue == null) {
                     field.set(dto, null);
                     continue;
                 }
+
+                if (!validateFieldValue(field, convertedValue, conn)) continue;
 
                 field.set(dto, convertedValue);
             }

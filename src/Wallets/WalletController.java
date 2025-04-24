@@ -2,6 +2,7 @@ package Wallets;
 
 import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
+import Exceptions.ValidationException;
 import General.GeneralController;
 import Server.WebServer;
 import Users.UserDTO;
@@ -21,40 +22,41 @@ public class WalletController extends GeneralController {
 
         WalletService walletService = new WalletService(conn);
         CompletableFuture.supplyAsync(() -> {
-                    try { return walletService.get(params); } catch (Exception e) { throw new RuntimeException(e); }
-                }, WebServer.dbThreadPool)
-                .exceptionallyAsync(e -> {
-                    response.error = true;
-                    while (e.getCause() != null) {
-                        e = e.getCause(); }
-                    response.msg = e.getMessage();
-                    response.data = null;
-                    if (e instanceof MappingException) {
-                        response.httpStatus = 400;
-                        response.errors = ((MappingException) e).getErrors();
-                    } else if (e instanceof InvalidParamsException) {
-                        response.httpStatus = 400;
-                        response.errors = ((InvalidParamsException) e).getErrors();
-                    }
-                    else {
-                        response.httpStatus = 500;
-                        response.errors = null;
-                    }
+            try { return walletService.get(params); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause(); }
+            response.msg = e.getMessage();
+            response.data = null;
+            if (e instanceof MappingException) {
+                response.httpStatus = 400;
+                response.errors = ((MappingException) e).getErrors();
+            } else if (e instanceof InvalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = ((InvalidParamsException) e).getErrors();
+            }
+            else {
+                response.httpStatus = 500;
+                response.errors = null;
+            }
 
-                    try { WebServer.SendResponse(exchange, response); }
-                    catch (IOException ex) { throw new RuntimeException(ex); }
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException ex) { throw new RuntimeException(ex); }
 
-                    return null;
-                }, exchange.getHttpContext().getServer().getExecutor())
-                .thenAcceptAsync(result -> {
-                    response.error = false;
-                    response.msg = "Sucesso ao recuperar carteira(s)";
-                    response.httpStatus = 200;
-                    response.data.put("data", result);
+            return null;
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenAcceptAsync(result -> {
+            response.error = false;
+            response.msg = "Sucesso ao recuperar carteira(s)";
+            response.httpStatus = 200;
+            response.data.put("data", result);
 
-                    try { WebServer.SendResponse(exchange, response); }
-                    catch (Exception e) { throw new RuntimeException(e); }
-                }, exchange.getHttpContext().getServer().getExecutor());
+            try { WebServer.SendResponse(exchange, response); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 
     @Override
@@ -66,42 +68,45 @@ public class WalletController extends GeneralController {
 
         WalletService walletService = new WalletService(conn);
         CompletableFuture.supplyAsync(() -> {
-                    try { return walletService.post(params); } catch (Exception e) { throw new RuntimeException(e); }
-                }, WebServer.dbThreadPool)
-                .exceptionallyAsync(e -> {
-                    response.error = true;
-                    while (e.getCause() != null) {
-                        e = e.getCause(); }
-                    response.msg = e.getMessage();
+            try { return walletService.post(params); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause(); }
+            response.msg = e.getMessage();
 
-                    response.data = null;
+            response.data = null;
 
-                    if (e instanceof MappingException) {
-                        response.httpStatus = 400;
-                        response.errors = ((MappingException) e).getErrors();
-                    } else if (e instanceof InvalidParamsException) {
-                        response.httpStatus = 400;
-                        response.errors = ((InvalidParamsException) e).getErrors();
-                    }
-                    else {
-                        response.httpStatus = 500;
-                        response.errors = null;
-                    }
+            if (e instanceof MappingException) {
+                response.httpStatus = 500;
+                response.errors = ((MappingException) e).getErrors();
+            } else if (e instanceof InvalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = ((InvalidParamsException) e).getErrors();
+            } else if (e instanceof ValidationException) {
+                response.httpStatus = 400;
+                response.errors = ((ValidationException) e).getErrors();
+            } else {
+                response.httpStatus = 500;
+                response.errors = null;
+            }
 
-                    try { WebServer.SendResponse(exchange, response); }
-                    catch (IOException ex) { throw new RuntimeException(ex); }
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException ex) { throw new RuntimeException(ex); }
 
-                    return null;
-                }, exchange.getHttpContext().getServer().getExecutor())
-                .thenAcceptAsync(result -> {
-                    response.error = false;
-                    response.msg = "Sucesso ao criar carteira";
-                    response.httpStatus = 201;
-                    response.data.put("data", result);
+            return null;
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenAcceptAsync(result -> {
+            response.error = false;
+            response.msg = "Sucesso ao criar carteira";
+            response.httpStatus = 201;
+            response.data.put("data", result.get());
 
-                    try { WebServer.SendResponse(exchange, response); }
-                    catch (Exception e) { throw new RuntimeException(e); }
-                }, exchange.getHttpContext().getServer().getExecutor());
+            try { WebServer.SendResponse(exchange, response); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 
     @Override

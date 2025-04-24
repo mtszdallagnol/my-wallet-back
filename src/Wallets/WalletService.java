@@ -70,9 +70,9 @@ public class WalletService implements ServiceInterface<WalletModel> {
             response.add(objectMapper.map(row));
         }
 
-        List<String> erros = objectMapper.getErrors();
-        if(!erros.isEmpty()){
-            throw new MappingException("Falha ao mapear objeto", erros);
+        List<String> errors = objectMapper.getErrors();
+        if(!errors.isEmpty()){
+            throw new MappingException("Falha ao mapear objeto", errors);
         }
 
         return response;
@@ -80,58 +80,47 @@ public class WalletService implements ServiceInterface<WalletModel> {
 
     @Override
     public Optional<WalletModel> post(Map<String, Object> walletToPost) throws SQLException {
-        PreparedStatement stmt = null;
-        ResultSet generatedKeys = null;
+        ObjectMapper<WalletModel> objectMapper = new ObjectMapper<>(WalletModel.class);
 
-            ObjectMapper<WalletModel> objectMapper = new ObjectMapper<>(WalletModel.class);
-
-            List<String> invalidFields = new ArrayList<>();
-            for (String key : walletToPost.keySet()){
-                if(!objectMapper.hasField(key) && !key.equals("id_usuario")){
-                    invalidFields.add(key);
-                }
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : walletToPost.keySet()){
+            if(!objectMapper.hasField(key) && !key.equals("id_usuario")){
+                invalidFields.add(key);
             }
+        }
+        if(!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
 
-            if(!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+        WalletModel wallet = objectMapper.map(walletToPost, conn);
 
-            WalletModel wallet = objectMapper.map(walletToPost, conn);
+        List<String> errors = objectMapper.getErrors();
+        if(!errors.isEmpty()){
+            throw new MappingException("Falha ao mapear objeto", errors);
+        }
 
-            int idUsuario = (int) walletToPost.get("id_usuario");
+        List<String> validationErrors = objectMapper.getValidationErrors();
+        if(!validationErrors.isEmpty()){
+            throw new ValidationException("Falha de validação", validationErrors);
+        }
 
-            List<String> errors = objectMapper.getErrors();
-            if(!errors.isEmpty()){
-                throw new MappingException("Falha ao mapear objeto", errors);
-            }
+        PreparedStatement stmt = conn.prepareStatement(
+                "INSERT INTO carteiras (nome, descricao, id_usuario)" +
+                        "VALUES (?, ?, ?);",
+                Statement.RETURN_GENERATED_KEYS);
 
-            List<String> validationErrors = objectMapper.getValidationErrors();
-            if(!validationErrors.isEmpty()){
-                throw new ValidationException("Falha de validação", validationErrors);
-            }
+        stmt.setString(1, wallet.getNome());
+        stmt.setString(2, wallet.getDescricao());
+        stmt.setInt(3, wallet.getId_usuario());
 
-            stmt = conn.prepareStatement(
-                    "INSERT INTO carteiras (nome, descricao, id_usuario)" +
-                            "VALUES (?, ?, ?);",
-                    Statement.RETURN_GENERATED_KEYS);
+        stmt.executeUpdate();
 
-            stmt.setString(1, wallet.getNome());
-            stmt.setString(2, wallet.getDescricao());
-            stmt.setInt(3, idUsuario);
+        ResultSet generatedKeys = stmt.getGeneratedKeys();
 
-            stmt.executeUpdate();
+        if (generatedKeys.next()) {
+            Object value = generatedKeys.getObject("GENERATED_KEY");
+            wallet.setId(((BigInteger) value).intValue());
+        }
 
-            generatedKeys = stmt.getGeneratedKeys();
-            ResultSetMetaData metaData = generatedKeys.getMetaData();
-            int columnCount = metaData.getColumnCount();
-
-            if(generatedKeys.next()){
-                for (int i = 1; i <= columnCount; i++){
-                    String columnName = metaData.getColumnName(i);
-                    Object value = generatedKeys.getObject(columnName);
-                    wallet.setId(((BigInteger)value).intValue());
-                }
-            }
-
-            return Optional.of(wallet);
+        return Optional.of(wallet);
     }
 
     public Optional<WalletModel> update(Map<String, Object> params) throws Exception{

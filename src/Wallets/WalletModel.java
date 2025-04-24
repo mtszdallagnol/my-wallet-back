@@ -19,14 +19,6 @@ public class WalletModel {
     @Required
     private Integer id_usuario;
 
-    public Integer getId_usuario() {
-        return id_usuario;
-    }
-
-    public void setId_usuario(Integer id_usuario) {
-        this.id_usuario = id_usuario;
-    }
-
     @Required
     @MaxLength(50)
     @Unique
@@ -54,6 +46,10 @@ public class WalletModel {
     public void setId(Integer id) {
         this.id = id;
     }
+
+    public Integer getId_usuario() { return id_usuario; }
+
+    public void setId_usuario(Integer id_usuario) { this.id_usuario = id_usuario; }
 
     public String getNome() {
         return nome;
