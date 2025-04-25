@@ -1,12 +1,7 @@
 package Auth;
 
-import Anotations.MaxLength;
-import Anotations.Table;
-
-import java.sql.Time;
 import java.sql.Timestamp;
 
-@Table(TableName = "refresh_tokens")
 public class RefreshTokenModel {
 
     private Integer id;

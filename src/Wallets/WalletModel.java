@@ -16,15 +16,10 @@ public class WalletModel {
 
     private Integer id;
 
-    @Required
     private Integer id_usuario;
 
-    @Required
-    @MaxLength(50)
-    @Unique
     private String nome;
 
-    @MaxLength(500)
     private String descricao;
 
     private BigDecimal saldo_total;

@@ -9,4 +9,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Unique {
     String message() default "Valor já existe";
+    boolean maintainContext() default false;
 }

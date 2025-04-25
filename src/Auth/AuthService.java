@@ -1,18 +1,10 @@
 package Auth;
 
 import Exceptions.MappingException;
-import General.CryptoUtils;
-import General.JsonParsers;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
-import Server.WebServer;
 
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.sql.*;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -65,14 +57,14 @@ public class AuthService implements ServiceInterface<RefreshTokenModel> {
 
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) {
-            throw new MappingException("Erro ao mapear objeto(s)", errors);
+            throw new MappingException(errors);
         }
 
         return response;
     }
 
     @Override
-    public Optional<RefreshTokenModel> post(Map<String, Object> params) throws MappingException, SQLException {
+    public RefreshTokenModel post(Map<String, Object> params) throws MappingException, SQLException {
         PreparedStatement stmt = conn.prepareStatement(
                 "INSERT INTO refresh_tokens (token, expires_at, id_usuario)" +
                     " VALUES (?, ?, ?)",
@@ -92,18 +84,15 @@ public class AuthService implements ServiceInterface<RefreshTokenModel> {
 
         ResultSet generatedKeys = stmt.getGeneratedKeys();
 
-        RefreshTokenModel response = null;
-        if (generatedKeys.next()) {
-            Object value = generatedKeys.getObject("GENERATED_KEY");
-            response = get(Map.of("id", value)).get(0);
-        }
+        generatedKeys.next();
+        Object value = generatedKeys.getObject("GENERATED_KEY");
 
-        return Optional.ofNullable(response);
+        return get(Map.of("id", value)).get(0);
     }
 
     @Override
-    public Optional<RefreshTokenModel> update(Map<String, Object> params) throws SQLException, MappingException {
-        return Optional.empty();
+    public RefreshTokenModel update(Map<String, Object> params) throws SQLException, MappingException {
+        return null;
     }
 
     @Override

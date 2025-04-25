@@ -10,6 +10,11 @@ public class ValidationException extends RuntimeException {
         this.errors = errors;
     }
 
+    public ValidationException(List<String> errors) {
+        super("Falha de validação");
+        this.errors = errors;
+    }
+
     public List<String> getErrors() {
         return this.errors;
     }

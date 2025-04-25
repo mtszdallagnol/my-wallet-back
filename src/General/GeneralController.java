@@ -223,9 +223,8 @@ abstract public class GeneralController {
         String requestType = exchange.getRequestMethod();
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
 
-        Map<String, Object> params = getParamsFromQuery(exchange.getRequestURI().getQuery());
-
         if (requestType.equalsIgnoreCase("GET")) {
+            Map<String, Object> params = getParamsFromQuery(exchange.getRequestURI().getQuery());
             handleGET(params);
         } else if (requestType.equalsIgnoreCase("POST")) {
             if (contentType == null || !contentType.contains("json")) {
@@ -289,6 +288,7 @@ abstract public class GeneralController {
             handlePUT(dataMap);
 
         } else if (requestType.equalsIgnoreCase("DELETE")) {
+            Map<String, Object> params = getParamsFromQuery(exchange.getRequestURI().getQuery());
             handleDELETE(params);
         } else {
             response.error = true;

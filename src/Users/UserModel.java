@@ -4,41 +4,30 @@ import Anotations.*;
 
 import java.time.Instant;
 
-@Table(TableName = "usuarios")
 public class UserModel {
-    //
-    // =========== Seção de membros privados ===========
-    //
+    //                                                   //
+    // =========== Seção de membros privados =========== //
+    //                                                   //
+
     private Integer id;
 
-    @Required
-    @MaxLength(100)
     private String nome;
 
-    @Required
-    @MaxLength(254)
-    @Email
-    @Unique
     private String email;
 
-    @Required
-    @Password
-    @MinLength(8)
-    @MaxLength(255)
     private String senha;
 
     private byte[] salt;
 
     private Instant data_criacao;
 
-    @Required
     private UserDTO.userType perfil;
 
     private UserDTO.userInvestimentStyle estilo_investidor;
 
-    //
-    // =========== Getters and Setters ===========
-    //
+    //                                           //
+    // =========== Getters e Setters =========== //
+    //                                           //
     
     public UserModel() { }
 
@@ -59,6 +48,8 @@ public class UserModel {
     public UserDTO.userType getPerfil() { return perfil; }
 
     public byte[] getSalt() { return salt; }
+
+    public UserDTO.userInvestimentStyle getEstilo_investidor() { return this.estilo_investidor; }
 
     public void setId(Integer id) { this.id = id; }
 

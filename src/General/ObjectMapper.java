@@ -47,39 +47,26 @@ public class ObjectMapper<T> {
         }
     }
 
-    public T map(Map<String, Object> row, Connection conn) {
-        try {
-            T dto = classInstance.getDeclaredConstructor().newInstance();
+    public List<String> executeValidation(Map<String, Object> row, Connection conn) {
+        for(Map.Entry<String, Field> entry : fields.entrySet()) {
+            String columnName = entry.getKey();
+            Field field = entry.getValue();
+            Object value = row.get(columnName);
 
-            for (Map.Entry<String, Field> entry : fields.entrySet()) {
-                String columnName = entry.getKey();
-                Field field = entry.getValue();
-                Object value = row.get(columnName);
-
-                if (field.isAnnotationPresent(Required.class)) {
-
-                    if (value == null || value.equals("")) {
-                        validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
-                        continue;
-                    }
-                }
-
-                Object convertedValue = convertInstanceOfObject(value, field);
-                if (convertedValue == null) {
-                    field.set(dto, null);
+            if (field.isAnnotationPresent(Required.class)) {
+                if (value == null || value.equals("")) {
+                    validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
                     continue;
                 }
-
-                if (!validateFieldValue(field, convertedValue, conn)) continue;
-
-                field.set(dto, convertedValue);
             }
 
-            return dto;
-        } catch (Exception e) {
-            errors.add(e.getMessage());
-            return null;
+            Object convertedValue = convertInstanceOfObject(value, field);
+            if (convertedValue == null) continue;
+
+            if (validateFieldValue(field, convertedValue, conn)) row.put(columnName, convertedValue);
         }
+
+        return validationErrors;
     }
 
     public boolean hasField(String fieldName) {
@@ -206,6 +193,4 @@ public class ObjectMapper<T> {
     }
 
     public List<String> getErrors() { return errors; }
-
-    public List<String> getValidationErrors() { return validationErrors; }
 }

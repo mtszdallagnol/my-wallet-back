@@ -2,6 +2,7 @@ package Users;
 
 import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
+import Exceptions.ValidationException;
 import General.GeneralController;
 
 import java.io.IOException;
@@ -75,7 +76,50 @@ public class UserController extends GeneralController {
 
     @Override
     protected void handlePUT(Map<String, Object> params) {
-        
+        if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
+            params.put("id", user.getId());
+        }
+
+        UserService userService = new UserService(conn);
+        CompletableFuture.supplyAsync(() -> {
+            try { return userService.update(params); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause(); }
+            response.msg = e.getMessage();
+
+            if (e instanceof InvalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = ((InvalidParamsException) e).getErrors();
+            } else if (e instanceof MappingException) {
+                response.httpStatus = 500;
+                response.errors = ((MappingException) e).getErrors();
+            } else if (e instanceof ValidationException) {
+                response.httpStatus = 400;
+                response.errors = ((ValidationException) e).getErrors();
+            } else {
+                response.httpStatus = 500;
+                response.errors = null;
+            }
+
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException ex) { throw new RuntimeException(ex); }
+
+            return null;
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenAcceptAsync(updatedUser -> {
+            response.error = false;
+            response.httpStatus = 200;
+            response.msg = "Sucesso ao atualizar usuário";
+            response.data.put("user", updatedUser);
+            response.errors = null;
+
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException e) { throw new RuntimeException(e); }
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 
     @Override
@@ -95,9 +139,8 @@ public class UserController extends GeneralController {
 
 
         UserService userService = new UserService(conn);
-        CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             try { userService.delete(params); } catch (Exception e) { throw new RuntimeException(e); }
-            return null;
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {
             response.error = true;
@@ -113,7 +156,6 @@ public class UserController extends GeneralController {
                 response.httpStatus = 500;
                 response.errors = null;
             }
-
 
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException ex) { throw new RuntimeException(ex); }

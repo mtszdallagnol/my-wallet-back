@@ -10,6 +10,11 @@ public class InvalidParamsException extends RuntimeException{
         this.invalidFields = invalidFields;
     }
 
+    public InvalidParamsException(List<String> invalidFields) {
+        super("Parâmetro(s) inválido(s)");
+        this.invalidFields = invalidFields;
+    }
+
     public List<String> getErrors() {
         return invalidFields;
     }

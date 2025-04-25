@@ -6,7 +6,6 @@ import Exceptions.ValidationException;
 import General.CryptoUtils;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
-import com.mysql.cj.x.protobuf.MysqlxPrepare;
 
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
@@ -28,7 +27,7 @@ public class UserService implements ServiceInterface<UserModel> {
                 invalidFields.add(key);
             }
         }
-        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
         StringBuilder query = new StringBuilder("SELECT * FROM usuarios");
 
@@ -74,15 +73,15 @@ public class UserService implements ServiceInterface<UserModel> {
 
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) {
-            throw new MappingException("Falha ao mapear objeto", errors);
+            throw new MappingException(errors);
         }
 
         return response;
     }
 
     @Override
-    public Optional<UserModel> post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
-        ObjectMapper<UserModel> objectMapper = new ObjectMapper<>(UserModel.class);
+    public UserModel post(Map<String, Object> userToPost) throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException {
+        ObjectMapper<UserDTO.postRequirementModel> objectMapper = new ObjectMapper<>(UserDTO.postRequirementModel.class);
 
         List<String> invalidFields = new ArrayList<>();
         for (String key : userToPost.keySet()) {
@@ -90,18 +89,13 @@ public class UserService implements ServiceInterface<UserModel> {
                 invalidFields.add(key);
             }
         }
-        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
-        UserModel user = objectMapper.map(userToPost, conn);
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        List<String> validationErrors = objectMapper.executeValidation(userToPost, conn);
+        if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
 
         List<String> errors = objectMapper.getErrors();
-        if (!errors.isEmpty()) {
-            throw new MappingException("Falha ao mapear objeto", errors);
-        }
-
-        List<String> validationErrors = objectMapper.getValidationErrors();
-        if (!validationErrors.isEmpty()) {
-            throw new ValidationException("Falha de validação", validationErrors);
-        }
+        if (!errors.isEmpty()) throw new MappingException(errors);
 
         PreparedStatement stmt = conn.prepareStatement(
                 "INSERT INTO usuarios (nome, email, senha, salt, perfil)" +
@@ -109,27 +103,65 @@ public class UserService implements ServiceInterface<UserModel> {
         Statement.RETURN_GENERATED_KEYS);
 
         byte[] salt = CryptoUtils.generateRandomSecureToken(SALT_SIZE);
-        stmt.setString(1, user.getNome());
-        stmt.setString(2, user.getEmail());
-        stmt.setString(3, CryptoUtils.hashPassword(user.getSenha(), salt));
+        stmt.setString(1, (String) userToPost.get("nome"));
+        stmt.setString(2, (String) userToPost.get("email"));
+        stmt.setString(3, CryptoUtils.hashPassword((String) userToPost.get("senha"), salt));
         stmt.setBytes(4, salt);
-        stmt.setString(5, user.getPerfil().toString());
+        stmt.setString(5, userToPost.get("perfil").toString());
 
         stmt.executeUpdate();
 
         ResultSet generatedKeys = stmt.getGeneratedKeys();
 
-        if (generatedKeys.next()) {
-            Object value = generatedKeys.getObject("GENERATED_KEY");
-            user.setId(((BigInteger) value).intValue());
-        }
+        generatedKeys.next();
+        Object value = generatedKeys.getObject("GENERATED_KEY");
 
-        return Optional.of(user);
+        return get(Map.of("id", value)).get(0);
     }
 
     @Override
-    public Optional<UserModel> update(Map<String, Object> userToUpdate) throws SQLException {
-        return Optional.empty();
+    public UserModel update(Map<String, Object> userToUpdate) throws SQLException {
+        ObjectMapper<UserDTO.updateRequirementModel> objectMapper = new ObjectMapper<>(UserDTO.updateRequirementModel.class);
+
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : userToUpdate.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        List<String> validationErrors = objectMapper.executeValidation(userToUpdate, conn);
+        if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
+
+        List<String> errors = objectMapper.getErrors();
+        if (!errors.isEmpty()) throw new MappingException(errors);
+
+        List<String> updateFields = new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
+
+        updateFields.add("nome = ?");
+        parameters.add(userToUpdate.get("nome"));
+
+        if (userToUpdate.containsKey("estilo_investidor")) {
+            updateFields.add("estilo_investidor = ?");
+            parameters.add(userToUpdate.get("estilo_investidor"));
+        }
+
+        String query = "UPDATE usuarios " +
+                     "SET " + String.join(", ", updateFields) + " " +
+                     "WHERE id = ?";
+
+        parameters.add(userToUpdate.get("id"));
+
+        PreparedStatement stmt = conn.prepareStatement(query);
+        for (int i = 0; i < parameters.size(); i++) {
+            stmt.setObject(i + 1, parameters.get(i).toString());
+        }
+
+        stmt.executeUpdate();
+
+        return get(Map.of("id", userToUpdate.get("id"))).get(0);
     }
 
     @Override
@@ -142,7 +174,7 @@ public class UserService implements ServiceInterface<UserModel> {
                 invalidFields.add(key);
             }
         }
-        if (!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
         StringBuilder query = new StringBuilder("DELETE FROM usuarios WHERE ");
         for (String key : params.keySet()) {

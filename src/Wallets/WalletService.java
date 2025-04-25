@@ -14,7 +14,7 @@ import Exceptions.InvalidParamsException;
 public class WalletService implements ServiceInterface<WalletModel> {
 
     @Override
-    public List<WalletModel> get(Map<String, Object> params) throws Exception{
+    public List<WalletModel> get(Map<String, Object> params) throws InvalidParamsException, SQLException {
         ObjectMapper<WalletModel> objectMapper = new ObjectMapper<>(WalletModel.class);
 
         List<String> invalidFields = new ArrayList<>();
@@ -25,7 +25,7 @@ public class WalletService implements ServiceInterface<WalletModel> {
             }
         }
 
-        if(!invalidFields.isEmpty()) throw new InvalidParamsException("Paramêtro(s) inválido(s)", invalidFields);
+        if(!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
         StringBuilder query = new StringBuilder("SELECT * FROM carteiras");
 
@@ -72,15 +72,15 @@ public class WalletService implements ServiceInterface<WalletModel> {
 
         List<String> errors = objectMapper.getErrors();
         if(!errors.isEmpty()){
-            throw new MappingException("Falha ao mapear objeto", errors);
+            throw new MappingException(errors);
         }
 
         return response;
     }
 
     @Override
-    public Optional<WalletModel> post(Map<String, Object> walletToPost) throws SQLException {
-        ObjectMapper<WalletModel> objectMapper = new ObjectMapper<>(WalletModel.class);
+    public WalletModel post(Map<String, Object> walletToPost) throws SQLException, InvalidParamsException, ValidationException, MappingException {
+        ObjectMapper<WalletDTO.postRequirementModel> objectMapper = new ObjectMapper<>(WalletDTO.postRequirementModel.class);
 
         List<String> invalidFields = new ArrayList<>();
         for (String key : walletToPost.keySet()){
@@ -88,43 +88,35 @@ public class WalletService implements ServiceInterface<WalletModel> {
                 invalidFields.add(key);
             }
         }
-        if(!invalidFields.isEmpty()) throw new InvalidParamsException("Parâmetro(s) inválido(s)", invalidFields);
+        if(!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
-        WalletModel wallet = objectMapper.map(walletToPost, conn);
+        List<String> validationErrors = objectMapper.executeValidation(walletToPost, conn);
+        if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
 
         List<String> errors = objectMapper.getErrors();
-        if(!errors.isEmpty()){
-            throw new MappingException("Falha ao mapear objeto", errors);
-        }
-
-        List<String> validationErrors = objectMapper.getValidationErrors();
-        if(!validationErrors.isEmpty()){
-            throw new ValidationException("Falha de validação", validationErrors);
-        }
+        if (!errors.isEmpty()) throw new MappingException(errors);
 
         PreparedStatement stmt = conn.prepareStatement(
                 "INSERT INTO carteiras (nome, descricao, id_usuario)" +
                         "VALUES (?, ?, ?);",
                 Statement.RETURN_GENERATED_KEYS);
 
-        stmt.setString(1, wallet.getNome());
-        stmt.setString(2, wallet.getDescricao());
-        stmt.setInt(3, wallet.getId_usuario());
+        stmt.setString(1, (String) walletToPost.get("nome"));
+        stmt.setString(2, (String) walletToPost.get("descricao"));
+        stmt.setInt(3, (Integer) walletToPost.get("id_usuario"));
 
         stmt.executeUpdate();
 
         ResultSet generatedKeys = stmt.getGeneratedKeys();
 
-        if (generatedKeys.next()) {
-            Object value = generatedKeys.getObject("GENERATED_KEY");
-            wallet.setId(((BigInteger) value).intValue());
-        }
+        generatedKeys.next();
+        Object value = generatedKeys.getObject("GENERATED_KEY");
 
-        return Optional.of(wallet);
+        return get(Map.of("id", value)).get(0);
     }
 
-    public Optional<WalletModel> update(Map<String, Object> params) throws Exception{
-        return Optional.empty();
+    public WalletModel update(Map<String, Object> params) throws Exception{
+        return null;
     }
 
     public void delete(Map<String, Object> params) throws Exception{

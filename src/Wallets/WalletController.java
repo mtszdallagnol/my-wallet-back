@@ -102,7 +102,7 @@ public class WalletController extends GeneralController {
             response.error = false;
             response.msg = "Sucesso ao criar carteira";
             response.httpStatus = 201;
-            response.data.put("data", result.get());
+            response.data.put("data", result);
 
             try { WebServer.SendResponse(exchange, response); }
             catch (Exception e) { throw new RuntimeException(e); }
@@ -111,9 +111,11 @@ public class WalletController extends GeneralController {
 
     @Override
     protected void handlePUT(Map<String, Object> params) {
+
     }
 
     @Override
     protected void handleDELETE(Map<String, Object> params) {
+
     }
 }

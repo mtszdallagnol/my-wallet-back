@@ -7,6 +7,7 @@ import General.CryptoUtils;
 import General.JsonParsers;
 import Responses.ControllerResponse;
 import Server.WebServer;
+import Users.UserDTO;
 import Users.UserModel;
 import Users.UserService;
 import com.sun.net.httpserver.HttpExchange;
@@ -149,6 +150,7 @@ public class AuthController {
             catch (Exception e) { throw new RuntimeException(e); }
 
             try {
+                // this should be executed with a db thread
                 Tokens tokens = createTokens(fetchedUser.getId());
 
                 String cookie = String.format("refresh_token=%s; HttpOnly; Path=/; Max-Age=%d; SameSite=Strict",
@@ -161,12 +163,7 @@ public class AuthController {
                 response.data.put("access_token", tokens.accessToken);
             } catch (Exception e) { throw new RuntimeException(e); }
 
-            fetchedUser.setId(null);
-            fetchedUser.setSenha(null);
-            fetchedUser.setSalt(null);
-            fetchedUser.setData_criacao(null);
-
-            response.data.put("usuario", fetchedUser);
+            response.data.put("usuario", new UserDTO.returnedUser(fetchedUser));
             response.errors = null;
 
             try { WebServer.SendResponse(exchange, response); }
@@ -206,11 +203,11 @@ public class AuthController {
             try { WebServer.SendResponse(exchange, response); }
             catch (IOException ex) { throw new RuntimeException(ex); }
 
-            return Optional.empty();
+            return null;
         }, exchange.getHttpContext().getServer().getExecutor())
         .thenAccept(result -> {
-            Tokens tokens = null;
-            try { if (result.isPresent()) tokens = createTokens(result.get().getId()); else throw new RuntimeException("Erro"); }
+            Tokens tokens;
+            try { tokens = createTokens(result.getId()); }
             catch (Exception e) { throw new RuntimeException(e); }
 
             String cookie = String.format("refresh_token=%s; HttpOnly; Path=/; Max-Age=%d; SameSite=Strict",
@@ -221,15 +218,7 @@ public class AuthController {
             response.msg = "Sucesso ao cadastrar usuário";
             response.httpStatus = 200;
             response.data.put("access_token", tokens.accessToken);
-            try { result = Optional.of(userService.get(Map.of("id", result.get().getId())).get(0)); }
-            catch (SQLException e) { throw new RuntimeException(e); }
-
-            result.get().setId(null);
-            result.get().setSenha(null);
-            result.get().setSalt(null);
-            result.get().setData_criacao(null);
-
-            response.data.put("user", result.get());
+            response.data.put("user", new UserDTO.returnedUser(result));
             response.errors = null;
 
             try { WebServer.SendResponse(exchange, response); }

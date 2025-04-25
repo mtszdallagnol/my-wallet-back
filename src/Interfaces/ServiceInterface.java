@@ -7,9 +7,9 @@ import java.util.Optional;
 public interface ServiceInterface<T> {
     List<T> get(Map<String, Object> params) throws Exception;
 
-    Optional<T> post(Map<String, Object> userToPost) throws Exception;
+    T post(Map<String, Object> userToPost) throws Exception;
 
-    Optional<T> update(Map<String, Object> params) throws Exception;
+    T update(Map<String, Object> params) throws Exception;
 
     void delete(Map<String, Object> params) throws Exception;
 }

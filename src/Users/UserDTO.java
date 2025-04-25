@@ -1,7 +1,6 @@
 package Users;
 
-import Anotations.MaxLength;
-import Anotations.Required;
+import Anotations.*;
 
 public class UserDTO {
     public enum userType {
@@ -11,20 +10,55 @@ public class UserDTO {
         CONSERVADOR, MODERADO, ARROJADO
     }
 
-    public class userUpdate {
+    public static class returnedUser {
+        private final String nome;
+
+        private final String email;
+
+        private final userType perfil;
+
+        private final userInvestimentStyle estilo_investidor;
+
+        public returnedUser(UserModel user) {
+            this.nome = user.getNome();
+            this.email = user.getEmail();
+            this.perfil = user.getPerfil();
+            this.estilo_investidor = user.getEstilo_investidor();
+        }
+    }
+
+    @Table(TableName = "usuarios")
+    public class postRequirementModel {
         @Required
-        private Integer id;
+        @MaxLength(100)
+        public String nome;
+
+        @Required
+        @MaxLength(254)
+        @Email
+        @Unique
+        public String email;
+
+        @Required
+        @Password
+        @MinLength(8)
+        @MaxLength(255)
+        public String senha;
+
+        @Required
+        public userType perfil;
+    }
+
+    @Table(TableName = "usuarios")
+    public class updateRequirementModel
+    {
+        @Required
+        public Integer id;
 
         @Required
         @MaxLength(100)
-        private String nome;
+        public String nome;
 
-        private userInvestimentStyle estilo_investidor;
-
-        public Integer getId() { return this.id; }
-
-        public String getNome() { return this.nome; }
-
-        public userInvestimentStyle getEstilo_investidor() { return estilo_investidor; }
+        public userInvestimentStyle estilo_investidor;
     }
 }

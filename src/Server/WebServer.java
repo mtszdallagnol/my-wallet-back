@@ -38,7 +38,7 @@ public class WebServer {
 
     private static final Logger logger = ColoredLogger.getLogger();
 
-    public static void start() throws IOException, SQLException, Exception {
+    public static void start() throws Exception {
         if (_Server != null) {
             logger.warning("Servidor já iniciado");
             return;

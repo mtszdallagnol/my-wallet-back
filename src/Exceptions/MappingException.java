@@ -10,6 +10,11 @@ public class MappingException extends RuntimeException {
         this.errors = errors;
     }
 
+    public MappingException(List<String> errors) {
+        super("Falha ao mapear objeto");
+        this.errors = errors;
+    }
+
     public List<String> getErrors() {
         return errors;
     }
