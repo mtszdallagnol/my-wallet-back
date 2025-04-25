@@ -2,14 +2,12 @@ package General;
 
 import Anotations.*;
 
+import javax.management.Query;
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ObjectMapper<T> {
     private final Class<T> classInstance;
@@ -58,12 +56,26 @@ public class ObjectMapper<T> {
                     validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
                     continue;
                 }
+
+                Object convertedValue = convertInstanceOfObject(value, field);
+                if (convertedValue != null) {
+                    row.put(columnName, convertedValue);
+                }
             }
+        }
+
+        for(Map.Entry<String, Field> entry : fields.entrySet()) {
+            String columnName = entry.getKey();
+            Field field = entry.getValue();
+            Object value = row.get(columnName);
+
+            if (value == null || (field.isAnnotationPresent(Required.class) && validationErrors.stream()
+                .anyMatch(error -> error.startsWith("Campo: " + columnName)))) continue;
 
             Object convertedValue = convertInstanceOfObject(value, field);
             if (convertedValue == null) continue;
 
-            if (validateFieldValue(field, convertedValue, conn)) row.put(columnName, convertedValue);
+            if (validateFieldValue(field, convertedValue, conn, row)) row.put(columnName, convertedValue);
         }
 
         return validationErrors;
@@ -73,7 +85,7 @@ public class ObjectMapper<T> {
         return fields.containsKey(fieldName);
     }
 
-    private boolean validateFieldValue(Field field, Object value, Connection conn) {
+    private boolean validateFieldValue(Field field, Object value, Connection conn, Map<String, Object> context) {
 
         String fieldName = field.getName();
 
@@ -120,11 +132,36 @@ public class ObjectMapper<T> {
         }
 
         if (field.isAnnotationPresent(Unique.class)) {
+            Unique annotation = field.getAnnotation(Unique.class);
+
             try {
-                PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).TableName() +
-                        " WHERE " + field.getName() + " = ?");
+                StringBuilder query = new StringBuilder(
+                        "SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).TableName() + " " +
+                        "WHERE " + field.getName() + " = ?"
+                );
+
+                List<Object> contextParamsValues = new ArrayList<>();
+                for (String contextFieldName : annotation.withFields()) {
+                    Object contextValue = context.get(contextFieldName);
+                    if (contextValue == null) {
+                        validationErrors.add(field.getName() + ": Validação de unicidade não pode ser realizada pois campo " +
+                                contextFieldName + " é nulo");
+                        return false;
+                    }
+
+                    query.append(" AND ").append(contextFieldName).append(" = ?");
+                    contextParamsValues.add(contextValue);
+                }
+
+                PreparedStatement stmt = conn.prepareStatement(query.toString());
 
                 stmt.setString(1, value.toString());
+
+                int enumerator = 2;
+                for (Object paramsToSet : contextParamsValues) {
+                    stmt.setString(enumerator, paramsToSet.toString());
+                    enumerator++;
+                }
 
                 ResultSet rs = stmt.executeQuery();
                 rs.next();

@@ -28,7 +28,7 @@ public class UserDTO {
     }
 
     @Table(TableName = "usuarios")
-    public class postRequirementModel {
+    public static class postRequirementModel {
         @Required
         @MaxLength(100)
         public String nome;
@@ -36,7 +36,7 @@ public class UserDTO {
         @Required
         @MaxLength(254)
         @Email
-        @Unique
+        @Unique(message = "Email já existente")
         public String email;
 
         @Required
@@ -50,7 +50,7 @@ public class UserDTO {
     }
 
     @Table(TableName = "usuarios")
-    public class updateRequirementModel
+    public static class updateRequirementModel
     {
         @Required
         public Integer id;
