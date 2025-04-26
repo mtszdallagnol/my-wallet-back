@@ -10,6 +10,10 @@ import java.sql.*;
 import java.util.*;
 
 import Exceptions.InvalidParamsException;
+import Users.UserDTO;
+import Users.UserModel;
+
+import javax.xml.transform.Result;
 
 public class WalletService implements ServiceInterface<WalletModel> {
 
@@ -115,12 +119,90 @@ public class WalletService implements ServiceInterface<WalletModel> {
         return get(Map.of("id", value)).get(0);
     }
 
-    public WalletModel update(Map<String, Object> params) throws Exception{
-        return null;
+    @Override
+    public WalletModel update(Map<String, Object> walletToUpdate) throws SQLException, InvalidParamsException, MappingException, ValidationException {
+        ObjectMapper<WalletDTO.updateRequirementModel> objectMapper = new ObjectMapper<>(WalletDTO.updateRequirementModel.class);
+
+        if (walletToUpdate.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
+
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : walletToUpdate.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        if (walletToUpdate.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
+
+        List<String> validationErrors = objectMapper.executeValidation(walletToUpdate, conn);
+        if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
+
+        List<String> errors = objectMapper.getErrors();
+        if (!errors.isEmpty()) throw new MappingException(errors);
+
+        List<String> updateFields = new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
+
+        for (Map.Entry<String, Object> column : walletToUpdate.entrySet()) {
+            updateFields.add(column.getKey() + " = ?");
+            parameters.add(column.getValue());
+        }
+
+        String query = "UPDATE carteiras " +
+                "SET " + String.join(", ", updateFields) + " " +
+                "WHERE id = ?";
+
+        parameters.add(walletToUpdate.get("id"));
+
+        PreparedStatement stmt = conn.prepareStatement(query);
+        for (int i = 0; i < parameters.size(); i++) {
+            stmt.setObject(i + 1, parameters.get(i).toString());
+        }
+
+        stmt.executeUpdate();
+
+        return get(Map.of("id", walletToUpdate.get("id"))).get(0);
     }
 
-    public void delete(Map<String, Object> params) throws Exception{
+    @Override
+    public void delete (Map<String, Object> params) throws SQLException, InvalidParamsException {
+        ObjectMapper<WalletModel> objectMapper = new ObjectMapper<>(WalletModel.class);
 
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : params.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        String checkQuery = "SELECT 1 FROM carteiras WHERE id = ? AND id_usuario = ?";
+            try(PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setObject(1, params.get("id"));
+                checkStmt.setObject(2, params.get("id_usuario"));
+                ResultSet resultSet = checkStmt.executeQuery();
+                if(!resultSet.next()){
+                    throw new InvalidParamsException("Carteira não encontrada", List.of());
+                }
+            }
+
+        StringBuilder query = new StringBuilder("DELETE FROM carteiras WHERE ");
+        for (String key : params.keySet()) {
+            String temp = key + " = ? AND ";
+            query.append(temp);
+        }
+        query.delete(query.length() - 5, query.length());
+        query.append(";");
+
+        PreparedStatement stmt = conn.prepareStatement(query.toString());
+        int enumerator = 1;
+        for (Object value : params.values()) {
+            stmt.setObject(enumerator, value);
+            enumerator++;
+        }
+
+        stmt.executeUpdate();
     }
 
     public WalletService(Connection conn) { this.conn = conn; }
