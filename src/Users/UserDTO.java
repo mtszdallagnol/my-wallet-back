@@ -55,7 +55,6 @@ public class UserDTO {
         @Required
         public Integer id;
 
-        @Required
         @MaxLength(100)
         public String nome;
 

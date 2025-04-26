@@ -123,6 +123,8 @@ public class UserService implements ServiceInterface<UserModel> {
     public UserModel update(Map<String, Object> userToUpdate) throws SQLException {
         ObjectMapper<UserDTO.updateRequirementModel> objectMapper = new ObjectMapper<>(UserDTO.updateRequirementModel.class);
 
+        if (userToUpdate.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
+
         List<String> invalidFields = new ArrayList<>();
         for (String key : userToUpdate.keySet()) {
             if (!objectMapper.hasField(key)) {
@@ -130,6 +132,8 @@ public class UserService implements ServiceInterface<UserModel> {
             }
         }
         if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        if (userToUpdate.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
 
         List<String> validationErrors = objectMapper.executeValidation(userToUpdate, conn);
         if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
@@ -140,12 +144,9 @@ public class UserService implements ServiceInterface<UserModel> {
         List<String> updateFields = new ArrayList<>();
         List<Object> parameters = new ArrayList<>();
 
-        updateFields.add("nome = ?");
-        parameters.add(userToUpdate.get("nome"));
-
-        if (userToUpdate.containsKey("estilo_investidor")) {
-            updateFields.add("estilo_investidor = ?");
-            parameters.add(userToUpdate.get("estilo_investidor"));
+        for (Map.Entry<String, Object> column : userToUpdate.entrySet()) {
+            updateFields.add(column.getKey() + " = ?");
+            parameters.add(column.getValue());
         }
 
         String query = "UPDATE usuarios " +
