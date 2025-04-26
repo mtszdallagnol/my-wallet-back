@@ -53,6 +53,7 @@ public class UserDTO {
     public static class updateRequirementModel
     {
         @Required
+        @Exists
         public Integer id;
 
         @MaxLength(100)
