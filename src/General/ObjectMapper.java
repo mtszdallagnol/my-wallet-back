@@ -1,6 +1,7 @@
 package General;
 
 import Anotations.*;
+import com.mysql.cj.x.protobuf.MysqlxPrepare;
 
 import javax.management.Query;
 import java.lang.reflect.Field;
@@ -53,7 +54,7 @@ public class ObjectMapper<T> {
 
             if (field.isAnnotationPresent(Required.class)) {
                 if (value == null || value.equals("")) {
-                    validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
+                    validationErrors.add(columnName + " é requerido mas tem valor nulo");
                     continue;
                 }
 
@@ -70,7 +71,7 @@ public class ObjectMapper<T> {
             Object value = row.get(columnName);
 
             if (value == null || (field.isAnnotationPresent(Required.class) && validationErrors.stream()
-                .anyMatch(error -> error.startsWith("Campo: " + columnName)))) continue;
+                .anyMatch(error -> error.startsWith(columnName)))) continue;
 
             Object convertedValue = convertInstanceOfObject(value, field);
             if (convertedValue == null) continue;
@@ -131,6 +132,32 @@ public class ObjectMapper<T> {
             }
         }
 
+        if (field.isAnnotationPresent(Exists.class)) {
+            Exists annotation = field.getAnnotation(Exists.class);
+
+            try {
+                String query = "SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).TableName() + " " +
+                               "WHERE " + field.getName() + " = ?";
+
+                PreparedStatement stmt = conn.prepareStatement(query);
+
+                stmt.setString(1, value.toString());
+
+                ResultSet rs = stmt.executeQuery();
+
+                rs.next();
+                int count = rs.getInt("total");
+
+                if (count < 1) {
+                    validationErrors.add(fieldName + ": " + annotation.message());
+                    return false;
+                }
+            } catch (SQLException e) {
+                errors.add("Erro ao lidar com verificação de campo obrigatoriamente existente" + e.getMessage());
+                return false;
+            }
+        }
+
         if (field.isAnnotationPresent(Unique.class)) {
             Unique annotation = field.getAnnotation(Unique.class);
 
@@ -169,7 +196,7 @@ public class ObjectMapper<T> {
                 int count = rs.getInt("total");
 
                 if (count > 0) {
-                    validationErrors.add(fieldName + ": " + field.getAnnotation(Unique.class).message());
+                    validationErrors.add(fieldName + ": " + annotation.message());
                     return false;
                 }
             } catch (SQLException e) {

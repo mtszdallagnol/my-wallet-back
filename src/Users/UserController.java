@@ -76,9 +76,8 @@ public class UserController extends GeneralController {
 
     @Override
     protected void handlePUT(Map<String, Object> params) {
-        if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
+        if (!user.getPerfil().equals(UserDTO.userType.ADMIN) || !params.containsKey("id"))
             params.put("id", user.getId());
-        }
 
         UserService userService = new UserService(conn);
         CompletableFuture.supplyAsync(() -> {
