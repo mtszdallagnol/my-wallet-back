@@ -177,16 +177,6 @@ public class WalletService implements ServiceInterface<WalletModel> {
         }
         if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
-        String checkQuery = "SELECT 1 FROM carteiras WHERE id = ? AND id_usuario = ?";
-            try(PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
-                checkStmt.setObject(1, params.get("id"));
-                checkStmt.setObject(2, params.get("id_usuario"));
-                ResultSet resultSet = checkStmt.executeQuery();
-                if(!resultSet.next()){
-                    throw new InvalidParamsException("Carteira não encontrada", List.of());
-                }
-            }
-
         StringBuilder query = new StringBuilder("DELETE FROM carteiras WHERE ");
         for (String key : params.keySet()) {
             String temp = key + " = ? AND ";
@@ -202,7 +192,8 @@ public class WalletService implements ServiceInterface<WalletModel> {
             enumerator++;
         }
 
-        stmt.executeUpdate();
+        int count = stmt.executeUpdate();
+        if (count < 1) throw new InvalidParamsException("Carteira não econtrada", List.of());
     }
 
     public WalletService(Connection conn) { this.conn = conn; }
