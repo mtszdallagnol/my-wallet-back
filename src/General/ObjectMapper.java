@@ -53,7 +53,7 @@ public class ObjectMapper<T> {
 
             if (field.isAnnotationPresent(Required.class)) {
                 if (value == null || value.equals("")) {
-                    validationErrors.add("Campo: " + columnName + " é requerido mas tem valor nulo");
+                    validationErrors.add(columnName + " é requerido mas tem valor nulo");
                     continue;
                 }
 
@@ -70,7 +70,7 @@ public class ObjectMapper<T> {
             Object value = row.get(columnName);
 
             if (value == null || (field.isAnnotationPresent(Required.class) && validationErrors.stream()
-                .anyMatch(error -> error.startsWith("Campo: " + columnName)))) continue;
+                .anyMatch(error -> error.startsWith(columnName)))) continue;
 
             Object convertedValue = convertInstanceOfObject(value, field);
             if (convertedValue == null) continue;
