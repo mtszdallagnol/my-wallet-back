@@ -192,7 +192,8 @@ public class UserService implements ServiceInterface<UserModel> {
             enumerator++;
         }
 
-        stmt.executeUpdate();
+        int count = stmt.executeUpdate();
+        if (count < 1) throw new InvalidParamsException("Usuário não encotrado", List.of());
     }
 
     public UserService(Connection conn) { this.conn = conn; }
