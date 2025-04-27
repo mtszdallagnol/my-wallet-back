@@ -1,9 +1,6 @@
 package Wallets;
 
-import Anotations.MaxLength;
-import Anotations.Required;
-import Anotations.Table;
-import Anotations.Unique;
+import Anotations.*;
 
 public class WalletDTO {
     @Table(TableName = "carteiras")
@@ -23,6 +20,7 @@ public class WalletDTO {
     @Table(TableName = "carteiras")
     public static class updateRequirementModel {
         @Required
+        @Exists
         public Integer id;
 
         @Required
