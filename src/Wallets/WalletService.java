@@ -5,15 +5,11 @@ import Exceptions.ValidationException;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
 
-import java.math.BigInteger;
 import java.sql.*;
 import java.util.*;
 
 import Exceptions.InvalidParamsException;
-import Users.UserDTO;
-import Users.UserModel;
 
-import javax.xml.transform.Result;
 
 public class WalletService implements ServiceInterface<WalletModel> {
 

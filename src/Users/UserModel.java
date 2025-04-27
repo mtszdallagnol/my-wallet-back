@@ -1,7 +1,5 @@
 package Users;
 
-import Anotations.*;
-
 import java.time.Instant;
 
 public class UserModel {
