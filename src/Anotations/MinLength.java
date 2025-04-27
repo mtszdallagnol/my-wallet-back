@@ -8,6 +8,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface MinLength {
-    int value();
+    double value();
     String message() default "Quantidade mínima de caracteres não atendida";
 }

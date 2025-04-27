@@ -2,6 +2,7 @@ package Server;
 
 import Auth.AuthController;
 import Responses.ControllerResponse;
+import Transactions.TransactionController;
 import Users.UserService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -80,6 +81,15 @@ public class WebServer {
             try {
                 conn = databaseConnectionPool.getConnection();
                 new WalletController().handle(exchange, conn);
+            }
+            catch (Exception e) { throw new RuntimeException(e); }
+            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
+        });
+        _Server.createContext("/transactions", exchange -> {
+            Connection conn = null;
+            try {
+                conn = databaseConnectionPool.getConnection();
+                new TransactionController().handle(exchange, conn);
             }
             catch (Exception e) { throw new RuntimeException(e); }
             finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }

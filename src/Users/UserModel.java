@@ -1,7 +1,10 @@
 package Users;
 
+import Anotations.Table;
+
 import java.time.Instant;
 
+@Table("usuarios")
 public class UserModel {
     //                                                   //
     // =========== Seção de membros privados =========== //

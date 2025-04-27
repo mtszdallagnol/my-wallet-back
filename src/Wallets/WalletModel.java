@@ -1,10 +1,12 @@
 package Wallets;
 
 
+import Anotations.Table;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
-
+@Table("carteiras")
 public class WalletModel {
 
     //

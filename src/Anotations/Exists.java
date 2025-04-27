@@ -9,4 +9,8 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Exists {
     String message() default "Registro não existente";
+
+    String[] withFields() default { };
+
+    String withTable() default "";
 }

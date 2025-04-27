@@ -62,7 +62,7 @@ public class WalletController extends GeneralController {
     @Override
     protected void handlePOST(Map<String, Object> params) {
 
-        if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
+        if (!user.getPerfil().equals(UserDTO.userType.ADMIN) || !params.containsKey("id_usuario")) {
             params.put("id_usuario", user.getId());
         }
 

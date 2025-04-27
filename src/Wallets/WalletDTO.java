@@ -3,7 +3,7 @@ package Wallets;
 import Anotations.*;
 
 public class WalletDTO {
-    @Table(TableName = "carteiras")
+    @Table("carteiras")
     public static class postRequirementModel {
         @Required
         public Integer id_usuario;
@@ -17,7 +17,7 @@ public class WalletDTO {
         public String descricao;
     }
 
-    @Table(TableName = "carteiras")
+    @Table("carteiras")
     public static class updateRequirementModel {
         @Required
         @Exists

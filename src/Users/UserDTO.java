@@ -27,7 +27,7 @@ public class UserDTO {
         }
     }
 
-    @Table(TableName = "usuarios")
+    @Table("usuarios")
     public static class postRequirementModel {
         @Required
         @MaxLength(100)
@@ -49,7 +49,7 @@ public class UserDTO {
         public userType perfil;
     }
 
-    @Table(TableName = "usuarios")
+    @Table("usuarios")
     public static class updateRequirementModel
     {
         @Required

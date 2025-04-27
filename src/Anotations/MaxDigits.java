@@ -7,7 +7,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface MaxLength {
-    double value();
-    String message() default "Capacidade máxima de excedida";
+public @interface MaxDigits {
+    int[] value();
+
+    String message() default "Número máximo de dígitos excedido";
 }

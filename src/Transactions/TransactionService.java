@@ -1,10 +1,17 @@
 package Transactions;
 
+import Assets.AssetsDTO;
+import Assets.AssetsModel;
+import Assets.AssetsService;
 import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
+import Exceptions.ValidationException;
 import General.ObjectMapper;
 import Interfaces.ServiceInterface;
+import Users.UserModel;
+import Wallets.WalletModel;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,82 +20,162 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 public class TransactionService implements ServiceInterface<TransactionModel> {
 
     @Override
     public List<TransactionModel> get(Map<String, Object> params) throws Exception{
-        ObjectMapper<TransactionModel> objectMapper = new ObjectMapper<>(TransactionModel.class);
+        ObjectMapper<TransactionModel> tMapper = new ObjectMapper<>(TransactionModel.class);
+        ObjectMapper<WalletModel> wMapper = new ObjectMapper<>(WalletModel.class);
+        ObjectMapper<UserModel> uMapper = new ObjectMapper<>(UserModel.class);
 
-        List<String> invalidFields = new ArrayList<>();
+        List<String> invalidFields = params.keySet().stream()
+                .filter(key -> !tMapper.hasField(key)
+                                && !wMapper.hasField(key)
+                                && !uMapper.hasField(key))
+                .collect(Collectors.toList());
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
-        for(String key : params.keySet()){
-            if(!objectMapper.hasField(key)){
-                invalidFields.add(key);
-            }
+        List<String> tKeys = new ArrayList<>();
+        List<String> wKeys = new ArrayList<>();
+        List<String> uKeys = new ArrayList<>();
+
+        for (String key : params.keySet()) {
+            if      (tMapper.hasField(key)) tKeys.add(key);
+            else if (wMapper.hasField(key)) wKeys.add(key);
+            else                            uKeys.add(key);
         }
 
-        if(!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+        StringBuilder query = new StringBuilder(
+                "SELECT t.* FROM transacoes t"
+        );
 
-        StringBuilder query = new StringBuilder("SELEC * FROM transacoes");
+        if (!wKeys.isEmpty() || !uKeys.isEmpty()) query.append(" INNER JOIN carteiras c ON c.id = t.id_carteira");
+        if (!uKeys.isEmpty()) query.append(" INNER JOIN usuarios u ON u.id = c.id_usuario");
 
-        if(!params.isEmpty()){
-            query.append("WHERE");
+        List<String> clauses   = new ArrayList<>();
+        List<Object> arguments = new ArrayList<>();
 
-            for(String key : params.keySet()){
-                String temp = key + " = ? AND ";
-                query.append(temp);
-            }
+        for (String key : tKeys) {
+            arguments.add(params.get(key));
 
-            query.delete(query.length() - 5, query.length());
-            query.append(";");
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("t." + key + " = ?");
         }
+
+        for (String key : wKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("c." + key + " = ?");
+        }
+
+        for (String key : uKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("u." + key + " = ?");
+        }
+
+        if (!clauses.isEmpty()) {
+            query.append(" WHERE ")
+                 .append(String.join(" AND ", clauses))
+                 .append(";");
+        } else query.append(";");
 
         PreparedStatement stmt = conn.prepareStatement(query.toString());
 
-        if(!params.isEmpty()){
-            int enumerator = 1;
-
-            for(Object value : params.values()){
-                stmt.setObject(enumerator, value);
-                enumerator++;
-            }
+        for (int i = 0; i < arguments.size(); i++) {
+            stmt.setObject(i + 1, arguments.get(i));
         }
+        ResultSet rs = stmt.executeQuery();
 
-        ResultSet resultSet = stmt.executeQuery();
-
-        ResultSetMetaData metaData = resultSet.getMetaData();
+        ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
 
         List<TransactionModel> response = new ArrayList<>();
-        while(resultSet.next()){
+        while(rs.next()) {
             Map<String, Object> row = new HashMap<>();
 
-            for(int i = 1; i <= columnCount; i++){
+            for (int i = 1; i <= columnCount; i++) {
                 String columnName = metaData.getColumnName(i);
-                Object value = resultSet.getObject(columnName);
+                Object value = rs.getObject(i);
+
                 row.put(columnName, value);
             }
 
-            response.add(objectMapper.map(row));
+            response.add(tMapper.map(row));
         }
 
-        List<String> errors = objectMapper.getErrors();
-        if(!errors.isEmpty()){
-            throw new MappingException(errors);
-        }
+        List<String> errors = tMapper.getErrors();
+        if (!errors.isEmpty()) throw new MappingException(errors);
 
         return response;
     }
 
     @Override
-    public TransactionModel post(Map<String, Object> userToPost) throws Exception{
-        return null;
-    }
+    public TransactionModel post(Map<String, Object> transactionToPost) throws Exception {
+        ObjectMapper<TransactionDTO.postRequirementModel> objectMapper = new ObjectMapper<>(TransactionDTO.postRequirementModel.class);
+
+        List<String> invalidFields = new ArrayList<>();
+        for (String key : transactionToPost.keySet()) {
+            if (!objectMapper.hasField(key)) {
+                invalidFields.add(key);
+            }
+        }
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        List<String> validationErrors = objectMapper.executeValidation(transactionToPost, conn);
+        if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
+
+        List<String> errors = objectMapper.getErrors();
+        if (!errors.isEmpty()) throw new MappingException(errors);
+
+        AssetsService assetsService = new AssetsService(conn);
+        AssetsModel referencedAsset = assetsService.get(Map.of("id", transactionToPost.get("id_ativo"))).get(0);
+
+        if (referencedAsset.getTipo() == AssetsDTO.assetType.ACAO &&
+           ((BigDecimal) transactionToPost.get("quantidade")).stripTrailingZeros().scale() > 0 ) {
+
+            throw new ValidationException(List.of("quantidade: " + "Quantidade incompatível com tipo de ativo (" + referencedAsset.getTipo() + ")"));
+        }
+
+        StringBuilder query = new StringBuilder(
+                "INERT INTO transacoes "
+        );
+
+        query.append("(");
+        query.append(String.join(", ", transactionToPost.keySet()));
+        query.append(")");
+
+        query.append(" VALUES ");
+        query.append("(");
+        query.append("?, ".repeat(transactionToPost.size()));
+        query.delete(query.length() - 2, query.length());
+        query.append(");");
+
+        PreparedStatement stmt = conn.prepareStatement(query.toString(), PreparedStatement.RETURN_GENERATED_KEYS);
+
+        int enumerator = 1;
+        for (Object key : transactionToPost.keySet()) {
+            stmt.setString(enumerator, key.toString());
+            enumerator++;
+        }
+
+        stmt.executeUpdate();
+
+        ResultSet generatedKeys = stmt.getGeneratedKeys();
+
+        generatedKeys.next();
+        Object value = generatedKeys.getObject("GENERATED_KEY");
+
+        return get(Map.of("id", value)).get(0);
+     }
 
     @Override
-    public TransactionModel update(Map<String, Object> userToUpdate) throws Exception{
+    public TransactionModel update(Map<String, Object> userToUpdate) throws Exception {
         return null;
     }
 

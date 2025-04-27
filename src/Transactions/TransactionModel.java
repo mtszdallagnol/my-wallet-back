@@ -1,8 +1,11 @@
 package Transactions;
 
+import Anotations.Table;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
+@Table("Transacoes")
 public class TransactionModel {
     //
     // =========== Seção de membros privados ===========
@@ -26,13 +29,13 @@ public class TransactionModel {
 
     private BigDecimal taxa_corretora;
 
-    private String moeda_codigo;
+    private String codigo_moeda;
 
     private String notas;
 
     private Instant data_criacao;
 
-    private Instant data_atulizacao;
+    private Instant data_atualizacao;
 
     //                                           //
     // =========== Getters e Setters =========== //
@@ -110,12 +113,12 @@ public class TransactionModel {
         this.taxa_corretora = taxa_corretora;
     }
 
-    public String getMoeda_codigo() {
-        return moeda_codigo;
+    public String getCodigo_moeda() {
+        return codigo_moeda;
     }
 
     public void setMoeda_codigo(String moeda_codigo) {
-        this.moeda_codigo = moeda_codigo;
+        this.codigo_moeda = moeda_codigo;
     }
 
     public String getNotas() {
@@ -134,11 +137,11 @@ public class TransactionModel {
         this.data_criacao = data_criacao;
     }
 
-    public Instant getData_atulizacao() {
-        return data_atulizacao;
+    public Instant getData_atualizacao() {
+        return data_atualizacao;
     }
 
-    public void setData_atulizacao(Instant data_atulizacao) {
-        this.data_atulizacao = data_atulizacao;
+    public void setData_atualizacao(Instant data_atulizacao) {
+        this.data_atualizacao = data_atulizacao;
     }
 }

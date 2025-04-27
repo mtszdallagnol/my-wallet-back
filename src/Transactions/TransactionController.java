@@ -60,8 +60,9 @@ public class TransactionController extends GeneralController{
         }, exchange.getHttpContext().getServer().getExecutor());
     }
     @Override
-    protected void handlePOST(Map<String, Object> params){
-        if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
+    protected void handlePOST(Map<String, Object> params) {
+
+        if (!user.getPerfil().equals(UserDTO.userType.ADMIN) || !params.containsKey("id_usuario")) {
             params.put("id_usuario", user.getId());
         }
 

@@ -65,6 +65,8 @@ public class ObjectMapper<T> {
             }
         }
 
+        if (!validationErrors.isEmpty()) return validationErrors;
+
         for(Map.Entry<String, Field> entry : fields.entrySet()) {
             String columnName = entry.getKey();
             Field field = entry.getValue();
@@ -83,6 +85,20 @@ public class ObjectMapper<T> {
     }
 
     public boolean hasField(String fieldName) {
+        if (fieldName.contains(".")) {
+            String[] parts = fieldName.split("\\.", 2);
+
+            if (parts.length <= 1) return false;
+
+            String prefix = parts[0];
+            String column = parts[1];
+
+            String tableName = classInstance.getAnnotation(Table.class).value();
+            if (!tableName.substring(0, tableName.length() - 1).equals(prefix)) return false;
+
+            fieldName = column;
+        }
+
         return fields.containsKey(fieldName);
     }
 
@@ -90,20 +106,49 @@ public class ObjectMapper<T> {
 
         String fieldName = field.getName();
 
+        if (field.isAnnotationPresent(MaxDigits.class)) {
+            MaxDigits annotation = field.getAnnotation(MaxDigits.class);
+
+            int maxIntegerPart = annotation.value()[0];
+            int maxDecimalPart = annotation.value()[1];
+
+            boolean shouldReturn = false;
+            String[] parts = ((String) value).split("\\.");
+            if (parts[0].length() > maxIntegerPart) {
+                validationErrors.add("O número de dígitos na parte inteira excede a capacidade máxima suportada: " + maxIntegerPart);
+                shouldReturn = true;
+            }
+
+            if (parts[1].length() > maxDecimalPart) {
+                validationErrors.add("O número de dígitos na parte decimal excede a capacidade máxmia suportada: " + maxDecimalPart);
+                shouldReturn = true;
+            }
+
+            if (shouldReturn) return false;
+        }
+
         if (field.isAnnotationPresent(MaxLength.class)) {
             MaxLength annotation = field.getAnnotation(MaxLength.class);
-            int maxLength = annotation.value();
-            if (value.toString().length() > maxLength) {
-                validationErrors.add(fieldName + ": " + annotation.message() + " " + maxLength);
+
+            double maxCapacity = annotation.value();
+            if (value instanceof String && ((String) value).length() > maxCapacity) {
+                validationErrors.add(fieldName + ": " + annotation.message() + " " + maxCapacity);
+                return false;
+            } else if (value instanceof Number && ((Number) value).doubleValue() > maxCapacity ) {
+                validationErrors.add(fieldName + ": " + annotation.message() + " " + maxCapacity);
                 return false;
             }
         }
 
         if (field.isAnnotationPresent(MinLength.class)) {
             MinLength annotation = field.getAnnotation(MinLength.class);
-            int minLength = annotation.value();
-            if (value.toString().length() < minLength) {
-                validationErrors.add(fieldName + ": " + annotation.message() + " " + minLength);
+
+            double minCapacity = annotation.value();
+            if (value instanceof String && ((String) value).length() < minCapacity) {
+                validationErrors.add(fieldName + ": " + annotation.message() + " " + minCapacity);
+                return false;
+            } else if (value instanceof Number && ((Number) value).doubleValue() < minCapacity) {
+                validationErrors.add(fieldName + ": " + annotation.message() + " " + minCapacity);
                 return false;
             }
         }
@@ -136,12 +181,34 @@ public class ObjectMapper<T> {
             Exists annotation = field.getAnnotation(Exists.class);
 
             try {
-                String query = "SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).TableName() + " " +
-                               "WHERE " + field.getName() + " = ?";
+                String contextTable = classInstance.getAnnotation(Table.class).value();
+                String contextCurrentFieldName = field.getName();
+                if (!annotation.withTable().isEmpty()) {
+                    contextTable = annotation.withTable();
+                    contextCurrentFieldName = field.getName().substring(0, field.getName().indexOf("_"));
+                }
 
-                PreparedStatement stmt = conn.prepareStatement(query);
+                StringBuilder query = new StringBuilder(
+                        "SELECT COUNT(*) AS total FROM " + contextTable + " " +
+                        "WHERE " + contextCurrentFieldName + " = ?"
+                );
+
+                List<Object> contextParamsValues = new ArrayList<>();
+                for (String contextFieldNames : annotation.withFields()) {
+                    Object contextValue = context.get(contextFieldNames);
+                    query.append(" AND ").append(contextValue).append(" = ?");
+                    contextParamsValues.add(contextValue);
+                }
+
+                PreparedStatement stmt = conn.prepareStatement(query.toString());
 
                 stmt.setString(1, value.toString());
+
+                int enumerator = 2;
+                for (Object paramValue : contextParamsValues) {
+                    stmt.setString(enumerator, paramValue.toString());
+                    enumerator++;
+                }
 
                 ResultSet rs = stmt.executeQuery();
 
@@ -163,19 +230,13 @@ public class ObjectMapper<T> {
 
             try {
                 StringBuilder query = new StringBuilder(
-                        "SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).TableName() + " " +
+                        "SELECT COUNT(*) AS total FROM " + classInstance.getAnnotation(Table.class).value() + " " +
                         "WHERE " + field.getName() + " = ?"
                 );
 
                 List<Object> contextParamsValues = new ArrayList<>();
                 for (String contextFieldName : annotation.withFields()) {
                     Object contextValue = context.get(contextFieldName);
-                    if (contextValue == null) {
-                        validationErrors.add(field.getName() + ": Validação de unicidade não pode ser realizada pois campo " +
-                                contextFieldName + " é nulo");
-                        return false;
-                    }
-
                     query.append(" AND ").append(contextFieldName).append(" = ?");
                     contextParamsValues.add(contextValue);
                 }
@@ -257,4 +318,5 @@ public class ObjectMapper<T> {
     }
 
     public List<String> getErrors() { return errors; }
+
 }
