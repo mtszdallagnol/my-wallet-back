@@ -197,10 +197,10 @@ public class JsonParsers {
             return "\"" + obj + "\"";
         }
 
-        // Cached field retrieval
+        // Cached field retrieval - gets fields from entire class hierarchy
         List<Field> fields = FIELD_CACHE.computeIfAbsent(clazz, cls -> {
             List<Field> computedFields = new ArrayList<>();
-            // Include fields from superclasses
+            // Include fields from all superclasses
             Class<?> currentClass = cls;
             while (currentClass != null && !currentClass.equals(Object.class)) {
                 for (Field field : currentClass.getDeclaredFields()) {

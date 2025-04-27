@@ -66,9 +66,9 @@ public class TransactionController extends GeneralController{
             params.put("id_usuario", user.getId());
         }
 
-        WalletService walletService = new WalletService(conn);
+        TransactionService transactionService = new TransactionService(conn);
         CompletableFuture.supplyAsync(() -> {
-            try { return walletService.post(params); }
+            try { return transactionService.post(params); }
             catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {
@@ -108,14 +108,15 @@ public class TransactionController extends GeneralController{
             catch (Exception e) { throw new RuntimeException(e); }
         }, exchange.getHttpContext().getServer().getExecutor());
     }
+
     @Override
     protected void handlePUT(Map<String, Object> params){
         if (!user.getPerfil().equals(UserDTO.userType.ADMIN) || !params.containsKey("id_usuario"))
             params.put("id_usuario", user.getId());
 
-        WalletService walletService = new WalletService(conn);
+        TransactionService transactionService = new TransactionService(conn);
         CompletableFuture.supplyAsync(() -> {
-            try { return walletService.update(params); }
+            try { return transactionService.update(params); }
             catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {
@@ -161,9 +162,9 @@ public class TransactionController extends GeneralController{
             params.put("id_usuario", user.getId());
         }
 
-        WalletService walletService = new WalletService(conn);
+        TransactionService transactionService = new TransactionService(conn);
         CompletableFuture.runAsync(() -> {
-            try { walletService.delete(params); }
+            try { transactionService.delete(params); }
             catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {

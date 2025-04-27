@@ -28,16 +28,12 @@ public class TransactionDTO {
         public transactionType tipo;
 
         @Required
-        @MaxDigits({20, 8})
+        @MaxDigits({ 20, 8 })
         public BigDecimal quantidade;
 
         @Required
         @MaxDigits({ 20 , 8 })
         public BigDecimal valor_unitario;
-
-        @Required
-        @MaxDigits({ 20, 2 })
-        public BigDecimal valor_total;
 
         @Required
         public Instant data_transacao;

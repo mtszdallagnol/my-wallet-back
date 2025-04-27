@@ -12,14 +12,8 @@ import Users.UserModel;
 import Wallets.WalletModel;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.*;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -142,26 +136,19 @@ public class TransactionService implements ServiceInterface<TransactionModel> {
             throw new ValidationException(List.of("quantidade: " + "Quantidade incompatível com tipo de ativo (" + referencedAsset.getTipo() + ")"));
         }
 
-        StringBuilder query = new StringBuilder(
-                "INERT INTO transacoes "
-        );
+//        transactionToPost.put("valor_total", )
 
-        query.append("(");
-        query.append(String.join(", ", transactionToPost.keySet()));
-        query.append(")");
+        String columns = String.join(", ", transactionToPost.keySet());
+        String placeholder = String.join(", ", Collections.nCopies(transactionToPost.size(), "?"));
 
-        query.append(" VALUES ");
-        query.append("(");
-        query.append("?, ".repeat(transactionToPost.size()));
-        query.delete(query.length() - 2, query.length());
-        query.append(");");
+        String query = "INSERT INTO transacoes (" + columns + ") VALUES (" + placeholder + ")";
 
-        PreparedStatement stmt = conn.prepareStatement(query.toString(), PreparedStatement.RETURN_GENERATED_KEYS);
+        PreparedStatement stmt = conn.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
 
         int enumerator = 1;
-        for (Object key : transactionToPost.keySet()) {
-            stmt.setString(enumerator, key.toString());
-            enumerator++;
+        for (Object value : transactionToPost.values()) {
+            if (value == null) stmt.setNull(enumerator++, Types.NULL);
+            else stmt.setObject(enumerator++, value);
         }
 
         stmt.executeUpdate();
@@ -169,9 +156,9 @@ public class TransactionService implements ServiceInterface<TransactionModel> {
         ResultSet generatedKeys = stmt.getGeneratedKeys();
 
         generatedKeys.next();
-        Object value = generatedKeys.getObject("GENERATED_KEY");
 
-        return get(Map.of("id", value)).get(0);
+        Object id = generatedKeys.getObject(1);
+        return get(Map.of("id", id)).get(0);
      }
 
     @Override
