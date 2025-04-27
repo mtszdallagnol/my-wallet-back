@@ -147,17 +147,19 @@ public class WalletService implements ServiceInterface<WalletModel> {
 
         String query = "UPDATE carteiras " +
                 "SET " + String.join(", ", updateFields) + " " +
-                "WHERE id = ?";
+                "WHERE id = ? AND id_usuario = ?";
 
         parameters.add(walletToUpdate.get("id"));
+        parameters.add(walletToUpdate.get("id_usuario"));
 
         PreparedStatement stmt = conn.prepareStatement(query);
         for (int i = 0; i < parameters.size(); i++) {
             stmt.setObject(i + 1, parameters.get(i).toString());
         }
 
-        stmt.executeUpdate();
+        int count = stmt.executeUpdate();
 
+        if (count < 1) throw new InvalidParamsException("Carteira não encontrada", List.of());
         return get(Map.of("id", walletToUpdate.get("id"))).get(0);
     }
 

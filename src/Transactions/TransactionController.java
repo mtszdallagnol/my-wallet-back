@@ -1,4 +1,4 @@
-package Wallets;
+package Transactions;
 
 import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
@@ -6,23 +6,24 @@ import Exceptions.ValidationException;
 import General.GeneralController;
 import Server.WebServer;
 import Users.UserDTO;
+import Wallets.WalletService;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-public class WalletController extends GeneralController {
+public class TransactionController extends GeneralController{
 
     @Override
-    protected void handleGET(Map<String, Object> params) {
+    protected void handleGET(Map<String, Object> params){
 
-        if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
+        if(!user.getPerfil().equals(UserDTO.userType.ADMIN)){
             params.put("id_usuario", user.getId());
         }
 
-        WalletService walletService = new WalletService(conn);
+        TransactionService transactionService = new TransactionService(conn);
         CompletableFuture.supplyAsync(() -> {
-            try { return walletService.get(params); }
+            try { return transactionService.get(params); }
             catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {
@@ -50,7 +51,7 @@ public class WalletController extends GeneralController {
         }, exchange.getHttpContext().getServer().getExecutor())
         .thenAcceptAsync(result -> {
             response.error = false;
-            response.msg = "Sucesso ao recuperar carteira(s)";
+            response.msg = "Sucesso ao recuperar transação(s)";
             response.httpStatus = 200;
             response.data.put("data", result);
 
@@ -58,10 +59,8 @@ public class WalletController extends GeneralController {
             catch (Exception e) { throw new RuntimeException(e); }
         }, exchange.getHttpContext().getServer().getExecutor());
     }
-
     @Override
-    protected void handlePOST(Map<String, Object> params) {
-
+    protected void handlePOST(Map<String, Object> params){
         if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
             params.put("id_usuario", user.getId());
         }
@@ -100,7 +99,7 @@ public class WalletController extends GeneralController {
         }, exchange.getHttpContext().getServer().getExecutor())
         .thenAcceptAsync(result -> {
             response.error = false;
-            response.msg = "Sucesso ao criar carteira";
+            response.msg = "Sucesso ao criar transação";
             response.httpStatus = 201;
             response.data.put("data", result);
 
@@ -108,9 +107,8 @@ public class WalletController extends GeneralController {
             catch (Exception e) { throw new RuntimeException(e); }
         }, exchange.getHttpContext().getServer().getExecutor());
     }
-
     @Override
-    protected void handlePUT(Map<String, Object> params) {
+    protected void handlePUT(Map<String, Object> params){
         if (!user.getPerfil().equals(UserDTO.userType.ADMIN) || !params.containsKey("id_usuario"))
             params.put("id_usuario", user.getId());
 
@@ -147,7 +145,7 @@ public class WalletController extends GeneralController {
         .thenAcceptAsync(updatedUser -> {
             response.error = false;
             response.httpStatus = 200;
-            response.msg = "Sucesso ao atualizar carteira";
+            response.msg = "Sucesso ao atualizar transação";
             response.data.put("user", updatedUser);
             response.errors = null;
 
@@ -155,18 +153,18 @@ public class WalletController extends GeneralController {
             catch (IOException e) { throw new RuntimeException(e); }
         }, exchange.getHttpContext().getServer().getExecutor());
     }
-    @Override
-    protected void handleDELETE(Map<String, Object> params) {
 
+    @Override
+    protected void handleDELETE(Map<String, Object> params){
         if (!user.getPerfil().equals(UserDTO.userType.ADMIN)) {
             params.put("id_usuario", user.getId());
         }
 
         WalletService walletService = new WalletService(conn);
         CompletableFuture.runAsync(() -> {
-                try { walletService.delete(params); }
-                catch (Exception e) { throw new RuntimeException(e); }
-            }, WebServer.dbThreadPool)
+            try { walletService.delete(params); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {
             response.error = true;
             while (e.getCause() != null) {
@@ -193,7 +191,7 @@ public class WalletController extends GeneralController {
         }, exchange.getHttpContext().getServer().getExecutor())
         .thenRunAsync(() -> {
             response.error = false;
-            response.msg = "Sucesso ao deletar carteira";
+            response.msg = "Sucesso ao deletar transação";
             response.httpStatus = 200;
             response.data = null;
             response.errors = null;
