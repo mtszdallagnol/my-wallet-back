@@ -166,42 +166,42 @@ public class WalletController extends GeneralController {
 
         WalletService walletService = new WalletService(conn);
         CompletableFuture.runAsync(() -> {
-                    try { walletService.delete(params); }
-                    catch (Exception e) { throw new RuntimeException(e); }
-                }, WebServer.dbThreadPool)
-                .exceptionallyAsync(e -> {
-                    response.error = true;
-                    while (e.getCause() != null) {
-                        e = e.getCause();
-                    }
-                    response.msg = e.getMessage();
-                    response.data = null;
+                try { walletService.delete(params); }
+                catch (Exception e) { throw new RuntimeException(e); }
+            }, WebServer.dbThreadPool)
+        .exceptionallyAsync(e -> {
+            response.error = true;
+            while (e.getCause() != null) {
+                e = e.getCause();
+            }
+            response.msg = e.getMessage();
+            response.data = null;
 
-                    if (e instanceof MappingException) {
-                        response.httpStatus = 400;
-                        response.errors = ((MappingException) e).getErrors();
-                    } else if (e instanceof InvalidParamsException) {
-                        response.httpStatus = 400;
-                        response.errors = ((InvalidParamsException) e).getErrors();
-                    } else {
-                        response.httpStatus = 500;
-                        response.errors = null;
-                    }
+            if (e instanceof MappingException) {
+                response.httpStatus = 400;
+                response.errors = ((MappingException) e).getErrors();
+            } else if (e instanceof InvalidParamsException) {
+                response.httpStatus = 400;
+                response.errors = ((InvalidParamsException) e).getErrors();
+            } else {
+                response.httpStatus = 500;
+                response.errors = null;
+            }
 
-                    try { WebServer.SendResponse(exchange, response); }
-                    catch (IOException ex) { throw new RuntimeException(ex); }
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException ex) { throw new RuntimeException(ex); }
 
-                    return null;
-                }, exchange.getHttpContext().getServer().getExecutor())
-                .thenRunAsync(() -> {
-                    response.error = false;
-                    response.msg = "Sucesso ao deletar carteira";
-                    response.httpStatus = 200;
-                    response.data = null;
-                    response.errors = null;
+            return null;
+        }, exchange.getHttpContext().getServer().getExecutor())
+        .thenRunAsync(() -> {
+            response.error = false;
+            response.msg = "Sucesso ao deletar carteira";
+            response.httpStatus = 200;
+            response.data = null;
+            response.errors = null;
 
-                    try { WebServer.SendResponse(exchange, response); }
-                    catch (IOException e) { throw new RuntimeException(e); }
-                }, exchange.getHttpContext().getServer().getExecutor());
+            try { WebServer.SendResponse(exchange, response); }
+            catch (IOException e) { throw new RuntimeException(e); }
+        }, exchange.getHttpContext().getServer().getExecutor());
     }
 }
