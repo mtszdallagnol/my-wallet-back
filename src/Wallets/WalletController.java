@@ -5,9 +5,12 @@ import Exceptions.MappingException;
 import Exceptions.ValidationException;
 import General.GeneralController;
 import Server.WebServer;
+import Transactions.TransactionService;
 import Users.UserDTO;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -21,8 +24,23 @@ public class WalletController extends GeneralController {
         }
 
         WalletService walletService = new WalletService(conn);
+        TransactionService transactionService = new TransactionService(conn);
+
         CompletableFuture.supplyAsync(() -> {
-            try { return walletService.get(params); }
+            try {
+                List<WalletModel> walletModels = walletService.get(params);
+                List<WalletDTO.WalletWithTransacitions> result = new ArrayList<>();
+
+                for (WalletModel currentWallet : walletModels) {
+                    WalletDTO.WalletWithTransacitions temp = new WalletDTO.WalletWithTransacitions(currentWallet);
+
+                    temp.transacoes = transactionService.get(Map.of("id_carteira", currentWallet.getId()));
+
+                    result.add(temp);
+                }
+
+                return result;
+            }
             catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {

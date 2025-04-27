@@ -1,6 +1,9 @@
 package Wallets;
 
 import Anotations.*;
+import Transactions.TransactionModel;
+
+import java.util.List;
 
 public class WalletDTO {
     @Table("carteiras")
@@ -33,4 +36,20 @@ public class WalletDTO {
         @MaxLength(200)
         public String descricao;
     }
+
+    public static class WalletWithTransacitions extends WalletModel{
+
+        public List<TransactionModel> transacoes;
+
+        public WalletWithTransacitions(WalletModel walletModel) {
+            this.setId(walletModel.getId());
+            this.setId_usuario(walletModel.getId_usuario());
+            this.setDescricao(walletModel.getDescricao());
+            this.setNome(walletModel.getNome());
+            this.setData_criacao(walletModel.getData_criacao());
+            this.setSaldo_total(walletModel.getSaldo_total());
+            this.setRentabilidade(walletModel.getRentabilidade());
+        }
+    }
+
 }

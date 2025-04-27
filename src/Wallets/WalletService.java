@@ -7,51 +7,67 @@ import Interfaces.ServiceInterface;
 
 import java.sql.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import Exceptions.InvalidParamsException;
+import Users.UserModel;
+import com.sun.source.tree.UsesTree;
 
 
 public class WalletService implements ServiceInterface<WalletModel> {
 
     @Override
     public List<WalletModel> get(Map<String, Object> params) throws InvalidParamsException, SQLException {
-        ObjectMapper<WalletModel> objectMapper = new ObjectMapper<>(WalletModel.class);
+        ObjectMapper<WalletModel> wMapper = new ObjectMapper<>(WalletModel.class);
+        ObjectMapper<UserModel> uMapper = new ObjectMapper<>(UserModel.class);
 
-        List<String> invalidFields = new ArrayList<>();
-
-        for(String key : params.keySet()){
-            if(!objectMapper.hasField(key)){
-                invalidFields.add(key);
-            }
-        }
-
+        List<String> invalidFields = params.keySet().stream()
+                .filter(key -> !wMapper.hasField(key)
+                        && !uMapper.hasField(key))
+                .collect(Collectors.toList());
         if(!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
 
-        StringBuilder query = new StringBuilder("SELECT * FROM carteiras");
 
-        if(!params.isEmpty()){
-            query.append(" WHERE ");
+        List<String> wKeys = new ArrayList<>();
+        List<String> uKeys = new ArrayList<>();
 
-            for(String key : params.keySet()){
-                String temp = key + " = ? AND ";
-                query.append(temp);
-            }
-
-            query.delete(query.length() - 5, query.length());
-            query.append(";");
+        for (String key : params.keySet()) {
+            if (wMapper.hasField(key)) wKeys.add(key);
+            else                            uKeys.add(key);
         }
+
+        StringBuilder query = new StringBuilder("SELECT c.* FROM carteiras c");
+
+        if (!uKeys.isEmpty()) query.append(" INNER JOIN usuarios u ON u.id = c.id_usuario");
+
+        List<String> clauses   = new ArrayList<>();
+        List<Object> arguments = new ArrayList<>();
+
+        for (String key : wKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("c." + key + " = ?");
+        }
+
+        for (String key : uKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("u." + key + " = ?");
+        }
+
+        if(!clauses.isEmpty()){
+            query.append(" WHERE ")
+                    .append(String.join(" AND ", clauses))
+                    .append(";");
+        }else query.append(";");
 
         PreparedStatement stmt = conn.prepareStatement(query.toString());
 
-        if(!params.isEmpty()){
-            int enumerator = 1;
-
-            for(Object value : params.values()){
-                stmt.setObject(enumerator, value);
-                enumerator++;
-            }
+        for (int i = 0; i < arguments.size(); i++){
+            stmt.setObject(i + 1, arguments.get(i));
         }
-
         ResultSet rs = stmt.executeQuery();
 
         ResultSetMetaData metaData = rs.getMetaData();
@@ -67,10 +83,10 @@ public class WalletService implements ServiceInterface<WalletModel> {
                 row.put(columnName, value);
             }
 
-            response.add(objectMapper.map(row));
+            response.add(wMapper.map(row));
         }
 
-        List<String> errors = objectMapper.getErrors();
+        List<String> errors = wMapper.getErrors();
         if(!errors.isEmpty()){
             throw new MappingException(errors);
         }
