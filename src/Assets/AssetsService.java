@@ -77,6 +77,7 @@ public class AssetsService implements ServiceInterface<AssetsModel> {
         return response;
     }
 
+
     @Override
     public AssetsModel post(Map<String, Object> userToPost) throws Exception {
         return null;

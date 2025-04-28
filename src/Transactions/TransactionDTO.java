@@ -22,7 +22,7 @@ public class TransactionDTO {
 
         @Required
         @Exists(withTable = "ativos")
-        public Integer id_ativo;
+        public String nome_ativo;
 
         @Required
         public transactionType tipo;

@@ -1,5 +1,6 @@
 package Server;
 
+import Assets.AssetsController;
 import Auth.AuthController;
 import Responses.ControllerResponse;
 import Transactions.TransactionController;
@@ -93,6 +94,14 @@ public class WebServer {
             }
             catch (Exception e) { throw new RuntimeException(e); }
             finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
+        });
+        _Server.createContext("/assets", exchange -> {
+           Connection conn = null;
+           try {
+               conn = databaseConnectionPool.getConnection();
+               new AssetsController().handle(exchange, conn);
+           } catch (Exception e) { throw new RuntimeException(e); }
+           finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
         });
 
         ThreadPoolExecutor httpThreadPool = new ThreadPoolExecutor(

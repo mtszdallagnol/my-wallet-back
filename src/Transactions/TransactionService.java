@@ -130,7 +130,10 @@ public class TransactionService implements ServiceInterface<TransactionModel> {
         transactionToPost.remove("id_usuario");
 
         AssetsService assetsService = new AssetsService(conn);
-        AssetsModel referencedAsset = assetsService.get(Map.of("id", transactionToPost.get("id_ativo"))).get(0);
+        AssetsModel referencedAsset = assetsService.get(Map.of("nome", transactionToPost.get("nome_ativo"))).get(0);
+
+        transactionToPost.put("id_ativo", referencedAsset.getId());
+        transactionToPost.remove("nome_ativo");
 
         BigDecimal assetQuantity  = (BigDecimal) transactionToPost.get("quantidade");
         if (referencedAsset.getTipo() == AssetsDTO.assetType.ACAO &&
