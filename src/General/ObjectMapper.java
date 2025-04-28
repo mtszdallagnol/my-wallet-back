@@ -308,7 +308,7 @@ public class ObjectMapper<T> {
                 if (target == BigDecimal.class) return new BigDecimal(value.toString());
                 if (target == Date.class) return Date.valueOf(LocalDate.parse(value.toString()));
             }
-            catch (Exception e) { validationErrors.add(targetField.getName() + ": Tipo de dado inválido" }
+            catch (Exception e) { validationErrors.add(targetField.getName() + ": Tipo de dado inválido"); }
             return null;
 
         } catch (Exception e) {
