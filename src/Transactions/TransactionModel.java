@@ -90,11 +90,11 @@ public class TransactionModel {
         this.valor_unitario = valor_unitario;
     }
 
-    public BigDecimal getValor_total() {
+    public BigDecimal getvalor_total() {
         return valor_total;
     }
 
-    public void setValor_total(BigDecimal valor_total) {
+    public void setvalor_total(BigDecimal valor_total) {
         this.valor_total = valor_total;
     }
 
