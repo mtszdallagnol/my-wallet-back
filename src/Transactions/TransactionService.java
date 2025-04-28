@@ -139,8 +139,10 @@ public class TransactionService implements ServiceInterface<TransactionModel> {
             throw new ValidationException(List.of("quantidade: " + "Quantidade incompatível com tipo de ativo (" + referencedAsset.getTipo() + ")"));
         }
 
+
         BigDecimal totalValue = assetQuantity.multiply((BigDecimal) transactionToPost.get("valor_unitario"));
-        totalValue = totalValue.subtract(totalValue.multiply((BigDecimal) transactionToPost.get("taxa_corretagem")));
+        if (transactionToPost.containsKey("taxa_corretagem"))
+            totalValue = totalValue.subtract(totalValue.multiply((BigDecimal) transactionToPost.get("taxa_corretagem")));
         transactionToPost.put("valor_total", totalValue);
 
         String columns = String.join(", ", transactionToPost.keySet());

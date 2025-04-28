@@ -4,6 +4,7 @@ import Exceptions.InvalidParamsException;
 import Exceptions.MappingException;
 import Exceptions.ValidationException;
 import General.GeneralController;
+import General.ObjectMapper;
 import Server.WebServer;
 import Transactions.TransactionService;
 import Users.UserDTO;
@@ -134,7 +135,29 @@ public class WalletController extends GeneralController {
 
         WalletService walletService = new WalletService(conn);
         CompletableFuture.supplyAsync(() -> {
-            try { return walletService.update(params); }
+            try {
+                ObjectMapper<WalletDTO.updateRequirementModel> objectMapper = new ObjectMapper<>(WalletDTO.updateRequirementModel.class);
+
+                if (params.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
+
+                List<String> invalidFields = new ArrayList<>();
+                for (String key : params.keySet()) {
+                    if (!objectMapper.hasField(key)) {
+                        invalidFields.add(key);
+                    }
+                }
+                if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+                if (params.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
+
+                List<String> validationErrors = objectMapper.executeValidation(params, conn);
+                if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
+
+                List<String> errors = objectMapper.getErrors();
+                if (!errors.isEmpty()) throw new MappingException(errors);
+
+                return walletService.update(params);
+            }
             catch (Exception e) { throw new RuntimeException(e); }
         }, WebServer.dbThreadPool)
         .exceptionallyAsync(e -> {

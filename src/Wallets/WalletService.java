@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 import Exceptions.InvalidParamsException;
 import Users.UserModel;
-import com.sun.source.tree.UsesTree;
 
 
 public class WalletService implements ServiceInterface<WalletModel> {
@@ -133,25 +132,6 @@ public class WalletService implements ServiceInterface<WalletModel> {
 
     @Override
     public WalletModel update(Map<String, Object> walletToUpdate) throws SQLException, InvalidParamsException, MappingException, ValidationException {
-        ObjectMapper<WalletDTO.updateRequirementModel> objectMapper = new ObjectMapper<>(WalletDTO.updateRequirementModel.class);
-
-        if (walletToUpdate.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
-
-        List<String> invalidFields = new ArrayList<>();
-        for (String key : walletToUpdate.keySet()) {
-            if (!objectMapper.hasField(key)) {
-                invalidFields.add(key);
-            }
-        }
-        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
-
-        if (walletToUpdate.size() < 2) throw new InvalidParamsException("Nenhum parâmetro enviado", List.of());
-
-        List<String> validationErrors = objectMapper.executeValidation(walletToUpdate, conn);
-        if (!validationErrors.isEmpty()) throw new ValidationException(validationErrors);
-
-        List<String> errors = objectMapper.getErrors();
-        if (!errors.isEmpty()) throw new MappingException(errors);
 
         List<String> updateFields = new ArrayList<>();
         List<Object> parameters = new ArrayList<>();

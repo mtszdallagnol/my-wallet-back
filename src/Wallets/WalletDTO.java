@@ -47,7 +47,7 @@ public class WalletDTO {
             this.setDescricao(walletModel.getDescricao());
             this.setNome(walletModel.getNome());
             this.setData_criacao(walletModel.getData_criacao());
-            this.setSaldo_total(walletModel.getSaldo_total());
+            this.settotal_aportado(walletModel.gettotal_aportado());
             this.setRentabilidade(walletModel.getRentabilidade());
         }
     }
