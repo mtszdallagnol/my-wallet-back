@@ -21,17 +21,35 @@ public class WalletModel {
 
     private String descricao;
 
-    private BigDecimal saldo_total;
+    private BigDecimal total_aportado;
 
     private BigDecimal rentabilidade;
 
     private Instant data_criacao;
+
+    private BigDecimal saldo_total;
 
 
     //
     // =========== Getters and Setters ===========
     //
 
+
+    public BigDecimal getTotal_aportado() {
+        return total_aportado;
+    }
+
+    public void setTotal_aportado(BigDecimal total_aportado) {
+        this.total_aportado = total_aportado;
+    }
+
+    public BigDecimal getSaldo_total() {
+        return saldo_total;
+    }
+
+    public void setSaldo_total(BigDecimal saldo_total) {
+        this.saldo_total = saldo_total;
+    }
 
     public Integer getId() {
         return id;
@@ -61,12 +79,12 @@ public class WalletModel {
         this.descricao = descricao;
     }
 
-    public BigDecimal getSaldo_total() {
-        return saldo_total;
+    public BigDecimal gettotal_aportado() {
+        return total_aportado;
     }
 
-    public void setSaldo_total(BigDecimal saldo_total) {
-        this.saldo_total = saldo_total;
+    public void settotal_aportado(BigDecimal total_aportado) {
+        this.total_aportado = total_aportado;
     }
 
     public BigDecimal getRentabilidade() {
