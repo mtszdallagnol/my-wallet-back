@@ -3,7 +3,7 @@ package Transactions;
 import Anotations.*;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.sql.Date;
 
 public class TransactionDTO {
 
@@ -36,9 +36,9 @@ public class TransactionDTO {
         public BigDecimal valor_unitario;
 
         @Required
-        public Instant data_transacao;
+        public Date data_transacao;
 
-        @MaxDigits({ 2, 2 })
+        @MaxDigits({ 4, 3 })
         @MinLength(0)
         @MaxLength(1)
         public BigDecimal taxa_corretagem;

@@ -5,8 +5,11 @@ import com.mysql.cj.x.protobuf.MysqlxPrepare;
 
 import javax.management.Query;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.sql.*;
+import java.sql.Date;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -55,12 +58,6 @@ public class ObjectMapper<T> {
             if (field.isAnnotationPresent(Required.class)) {
                 if (value == null || value.equals("")) {
                     validationErrors.add(columnName + " é requerido mas tem valor nulo");
-                    continue;
-                }
-
-                Object convertedValue = convertInstanceOfObject(value, field);
-                if (convertedValue != null) {
-                    row.put(columnName, convertedValue);
                 }
             }
         }
@@ -109,17 +106,19 @@ public class ObjectMapper<T> {
         if (field.isAnnotationPresent(MaxDigits.class)) {
             MaxDigits annotation = field.getAnnotation(MaxDigits.class);
 
-            int maxIntegerPart = annotation.value()[0];
+            int totalDigits = annotation.value()[0];
+
             int maxDecimalPart = annotation.value()[1];
+            int maxIntegerPart = totalDigits - maxDecimalPart;
 
             boolean shouldReturn = false;
-            String[] parts = ((String) value).split("\\.");
+            String[] parts = value.toString().split("\\.", 2);
             if (parts[0].length() > maxIntegerPart) {
                 validationErrors.add("O número de dígitos na parte inteira excede a capacidade máxima suportada: " + maxIntegerPart);
                 shouldReturn = true;
             }
 
-            if (parts[1].length() > maxDecimalPart) {
+            if (parts.length > 1 && parts[1].length() > maxDecimalPart) {
                 validationErrors.add("O número de dígitos na parte decimal excede a capacidade máxmia suportada: " + maxDecimalPart);
                 shouldReturn = true;
             }
@@ -196,7 +195,7 @@ public class ObjectMapper<T> {
                 List<Object> contextParamsValues = new ArrayList<>();
                 for (String contextFieldNames : annotation.withFields()) {
                     Object contextValue = context.get(contextFieldNames);
-                    query.append(" AND ").append(contextValue).append(" = ?");
+                    query.append(" AND ").append(contextFieldNames).append(" = ?");
                     contextParamsValues.add(contextValue);
                 }
 
@@ -305,12 +304,13 @@ public class ObjectMapper<T> {
                 return null;
             }
 
-            if (!target.isInstance(value)) {
-                validationErrors.add(targetField.getName() + ": Tipo de dado inválido");
-                return null;
+            try {
+                if (target == BigDecimal.class) return new BigDecimal(value.toString());
+                if (target == Date.class) return Date.valueOf(LocalDate.parse(value.toString()));
             }
+            catch (Exception e) { validationErrors.add(targetField.getName() + ": Tipo de dado inválido" }
+            return null;
 
-            return target.cast(value);
         } catch (Exception e) {
             errors.add(e.getMessage());
             return null;

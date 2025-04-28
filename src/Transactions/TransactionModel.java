@@ -3,6 +3,7 @@ package Transactions;
 import Anotations.Table;
 
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.time.Instant;
 
 @Table("Transacoes")
@@ -25,7 +26,7 @@ public class TransactionModel {
 
     private BigDecimal valor_total;
 
-    private Instant data_transacao;
+    private Date data_transacao;
 
     private BigDecimal taxa_corretora;
 
@@ -97,11 +98,11 @@ public class TransactionModel {
         this.valor_total = valor_total;
     }
 
-    public Instant getData_transacao() {
+    public Date getData_transacao() {
         return data_transacao;
     }
 
-    public void setData_transacao(Instant data_transacao) {
+    public void setData_transacao(Date data_transacao) {
         this.data_transacao = data_transacao;
     }
 

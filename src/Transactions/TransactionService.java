@@ -127,16 +127,21 @@ public class TransactionService implements ServiceInterface<TransactionModel> {
         List<String> errors = objectMapper.getErrors();
         if (!errors.isEmpty()) throw new MappingException(errors);
 
+        transactionToPost.remove("id_usuario");
+
         AssetsService assetsService = new AssetsService(conn);
         AssetsModel referencedAsset = assetsService.get(Map.of("id", transactionToPost.get("id_ativo"))).get(0);
 
+        BigDecimal assetQuantity  = (BigDecimal) transactionToPost.get("quantidade");
         if (referencedAsset.getTipo() == AssetsDTO.assetType.ACAO &&
-           ((BigDecimal) transactionToPost.get("quantidade")).stripTrailingZeros().scale() > 0 ) {
+           assetQuantity.stripTrailingZeros().scale() > 0 ) {
 
             throw new ValidationException(List.of("quantidade: " + "Quantidade incompatível com tipo de ativo (" + referencedAsset.getTipo() + ")"));
         }
 
-//        transactionToPost.put("valor_total", )
+        BigDecimal totalValue = assetQuantity.multiply((BigDecimal) transactionToPost.get("valor_unitario"));
+        totalValue = totalValue.subtract(totalValue.multiply((BigDecimal) transactionToPost.get("taxa_corretagem")));
+        transactionToPost.put("valor_total", totalValue);
 
         String columns = String.join(", ", transactionToPost.keySet());
         String placeholder = String.join(", ", Collections.nCopies(transactionToPost.size(), "?"));
@@ -148,7 +153,7 @@ public class TransactionService implements ServiceInterface<TransactionModel> {
         int enumerator = 1;
         for (Object value : transactionToPost.values()) {
             if (value == null) stmt.setNull(enumerator++, Types.NULL);
-            else stmt.setObject(enumerator++, value);
+            else stmt.setString(enumerator++, value.toString());
         }
 
         stmt.executeUpdate();
