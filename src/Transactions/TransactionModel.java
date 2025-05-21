@@ -18,7 +18,7 @@ public class TransactionModel {
 
     private Integer id_ativo;
 
-    private TransactionDTO tipo;
+    private TransactionDTO.transactionType tipo;
 
     private BigDecimal quantidade;
 
@@ -28,7 +28,7 @@ public class TransactionModel {
 
     private Date data_transacao;
 
-    private BigDecimal taxa_corretora;
+    private BigDecimal taxa_corretagem;
 
     private String codigo_moeda;
 
@@ -66,11 +66,11 @@ public class TransactionModel {
         this.id_ativo = id_ativo;
     }
 
-    public TransactionDTO getTipo() {
+    public TransactionDTO.transactionType getTipo() {
         return tipo;
     }
 
-    public void setTipo(TransactionDTO tipo) {
+    public void setTipo(TransactionDTO.transactionType tipo) {
         this.tipo = tipo;
     }
 
@@ -106,12 +106,12 @@ public class TransactionModel {
         this.data_transacao = data_transacao;
     }
 
-    public BigDecimal getTaxa_corretora() {
-        return taxa_corretora;
+    public BigDecimal getTaxa_corretagem() {
+        return taxa_corretagem;
     }
 
-    public void setTaxa_corretora(BigDecimal taxa_corretora) {
-        this.taxa_corretora = taxa_corretora;
+    public void setTaxa_corretagem(BigDecimal taxa_corretagem) {
+        this.taxa_corretagem = taxa_corretagem;
     }
 
     public String getCodigo_moeda() {

@@ -2,6 +2,7 @@ package Server;
 
 import Assets.AssetsController;
 import Auth.AuthController;
+import Goals.GoalController;
 import Responses.ControllerResponse;
 import Transactions.TransactionController;
 import Users.UserService;
@@ -102,6 +103,14 @@ public class WebServer {
                new AssetsController().handle(exchange, conn);
            } catch (Exception e) { throw new RuntimeException(e); }
            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
+        });
+        _Server.createContext("/goals", exchange -> {
+            Connection conn = null;
+            try {
+                conn = databaseConnectionPool.getConnection();
+                new GoalController().handle(exchange, conn);
+            } catch (Exception e) { throw new RuntimeException(e); }
+            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
         });
 
         ThreadPoolExecutor httpThreadPool = new ThreadPoolExecutor(

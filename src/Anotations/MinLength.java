@@ -9,5 +9,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface MinLength {
     double value();
-    String message() default "Quantidade mínima de caracteres não atendida";
+    String message() default "Quantidade mínima não atendida";
 }
