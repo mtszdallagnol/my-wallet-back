@@ -18,12 +18,12 @@ import java.util.stream.Collectors;
 public class GoalService implements ServiceInterface<GoalModel> {
 
     public List<GoalModel> get(Map<String, Object> params) throws Exception {
-        ObjectMapper<GoalModel> mMapper = new ObjectMapper<>(GoalModel.class);
+        ObjectMapper<GoalModel> gMapper = new ObjectMapper<>(GoalModel.class);
         ObjectMapper<WalletModel> wMapper = new ObjectMapper<>(WalletModel.class);
         ObjectMapper<UserModel> uMapper = new ObjectMapper<>(UserModel.class);
 
         List<String> invalidFields = params.keySet().stream()
-                .filter(key -> !mMapper.hasField(key)
+                .filter(key -> !gMapper.hasField(key)
                         && !wMapper.hasField(key)
                         && !uMapper.hasField(key))
                 .collect(Collectors.toList());
@@ -34,7 +34,7 @@ public class GoalService implements ServiceInterface<GoalModel> {
         List<String> uKeys = new ArrayList<>();
 
         for (String key : params.keySet()) {
-            if      (mMapper.hasField(key)) tKeys.add(key);
+            if      (gMapper.hasField(key)) tKeys.add(key);
             else if (wMapper.hasField(key)) wKeys.add(key);
             else                            uKeys.add(key);
         }
@@ -97,10 +97,10 @@ public class GoalService implements ServiceInterface<GoalModel> {
                 row.put(columnName, value);
             }
 
-            response.add(mMapper.map(row));
+            response.add(gMapper.map(row));
         }
 
-        List<String> errors = mMapper.getErrors();
+        List<String> errors = gMapper.getErrors();
         if (!errors.isEmpty()) throw new MappingException(errors);
 
         return response;
@@ -155,7 +155,71 @@ public class GoalService implements ServiceInterface<GoalModel> {
     }
 
     public void delete(Map<String, Object> params) throws Exception {
+        ObjectMapper<GoalModel> gMapper = new ObjectMapper<>(GoalModel.class);
+        ObjectMapper<WalletModel> wMapper = new ObjectMapper<>(WalletModel.class);
+        ObjectMapper<UserModel> uMapper = new ObjectMapper<>(UserModel.class);
 
+        List<String> invalidFields = params.keySet().stream()
+                .filter(key -> !gMapper.hasField(key)
+                        && !wMapper.hasField(key)
+                        && !uMapper.hasField(key))
+                .collect(Collectors.toList());
+        if (!invalidFields.isEmpty()) throw new InvalidParamsException(invalidFields);
+
+        List<String> tKeys = new ArrayList<>();
+        List<String> wKeys = new ArrayList<>();
+        List<String> uKeys = new ArrayList<>();
+
+        for (String key : params.keySet()) {
+            if      (gMapper.hasField(key)) tKeys.add(key);
+            else if (wMapper.hasField(key)) wKeys.add(key);
+            else                            uKeys.add(key);
+        }
+
+        StringBuilder query = new StringBuilder(
+                "DELETE m FROM metas AS m"
+        );
+
+        if (!wKeys.isEmpty() || !uKeys.isEmpty()) query.append(" INNER JOIN carteiras c ON c.id = m.id_carteira");
+        if (!uKeys.isEmpty()) query.append(" INNER JOIN usuarios u ON u.id = c.id_usuario");
+
+        List<String> clauses   = new ArrayList<>();
+        List<Object> arguments = new ArrayList<>();
+
+        for (String key : tKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("m." + key + " = ?");
+        }
+
+        for (String key : wKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("c." + key + " = ?");
+        }
+
+        for (String key : uKeys) {
+            arguments.add(params.get(key));
+
+            key = key.contains(".") ? key.substring(key.indexOf(".") + 1) : key;
+            clauses.add("u." + key + " = ?");
+        }
+
+        if (!clauses.isEmpty()) {
+            query.append(" WHERE ")
+                    .append(String.join(" AND ", clauses))
+                    .append(";");
+        } else query.append(";");
+
+        PreparedStatement stmt = conn.prepareStatement(query.toString());
+
+        for (int i = 0; i < arguments.size(); i++) {
+            stmt.setObject(i + 1, arguments.get(i));
+        }
+        int count = stmt.executeUpdate();
+        if (count < 1) throw new InvalidParamsException("Meta(s) não encontrada(s)", List.of());
     }
 
     public GoalService(Connection conn) { this.conn = conn; }
