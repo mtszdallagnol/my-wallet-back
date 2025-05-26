@@ -3,6 +3,7 @@ package Server;
 import Assets.AssetsController;
 import Auth.AuthController;
 import Goals.GoalController;
+import News.NewsController;
 import Responses.ControllerResponse;
 import Transactions.TransactionController;
 import Users.UserService;
@@ -109,6 +110,14 @@ public class WebServer {
             try {
                 conn = databaseConnectionPool.getConnection();
                 new GoalController().handle(exchange, conn);
+            } catch (Exception e) { throw new RuntimeException(e); }
+            finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
+        });
+        _Server.createContext("/news", exchange -> {
+            Connection conn = null;
+            try {
+                conn = databaseConnectionPool.getConnection();
+                new NewsController().handle(exchange, conn);
             } catch (Exception e) { throw new RuntimeException(e); }
             finally { if (conn != null) databaseConnectionPool.returnConnection(conn); }
         });
